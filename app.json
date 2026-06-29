@@ -5,10 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "chilli",
+    "scheme": "com.anonymous.chilli.auth0",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.anonymous.chilli",
       "supportsTablet": true
     },
     "android": {
@@ -19,7 +20,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.chilli"
     },
     "web": {
       "output": "static",
@@ -38,11 +40,45 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      [
+        "react-native-auth0",
+        {
+          "domain": "chillie.eu.auth0.com",
+          "customScheme": "com.anonymous.chilli.auth0"
+        }
+      ],
+      [
+        "expo-asset",
+        {
+          "assets": [
+            "./assets/images/loginImages/image_1.png",
+            "./assets/images/loginImages/image_2.png",
+            "./assets/images/loginImages/image_3.png",
+            "./assets/images/loginImages/image_4.png"
+          ]
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "node_modules/@expo-google-fonts/happy-monkey/400Regular/HappyMonkey_400Regular.ttf"
+          ]
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "16e4f460-46e7-4c08-948b-c6664adf62c9"
+      }
+    },
+    "owner": "dmytrostnv09"
   }
 }

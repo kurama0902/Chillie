@@ -1,24 +1,66 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { Stack } from "expo-router";
+import { View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { IconButton, useTheme } from "react-native-paper";
+import { Provider } from "react-redux";
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { Auth0Provider } from "react-native-auth0";
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { store } from "@/store";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+import { ThemeProvider, useThemeMode } from "@/context/ThemeContext";
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
-
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+function RootNavigator() {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const { isDark, toggleTheme } = useThemeMode();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <View
+      style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom }}
+    >
+      <IconButton
+        icon={isDark ? "weather-sunny" : "weather-night"}
+        size={28}
+        iconColor={theme.colors.primary}
+        style={{
+          position: "absolute",
+          top: insets.top + 10,
+          right: 10,
+          zIndex: 9999,
+        }}
+        onPress={toggleTheme}
+      />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: theme.colors.background },
+        }}
+      />
+    </View>
+  );
+}
+
+export default function RootLayout() {
+  const domain = process.env.EXPO_PUBLIC_AUTH0DOMAIN as string;
+  const clientId = process.env.EXPO_PUBLIC_CLIENT_ID as string;
+
+  return (
+    <Provider store={store}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemeProvider>
+          <SafeAreaProvider>
+            <KeyboardProvider>
+              <Auth0Provider domain={domain} clientId={clientId}>
+                <RootNavigator />
+              </Auth0Provider>
+            </KeyboardProvider>
+          </SafeAreaProvider>
+        </ThemeProvider>
+      </GestureHandlerRootView>
+    </Provider>
   );
 }
