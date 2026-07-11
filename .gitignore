@@ -1,0 +1,7 @@
+/target
+.env
+.claude/
+.serena/
+.agents/
+.codex/
+AGENTS.md
