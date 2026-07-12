@@ -281,9 +281,21 @@ async fn get_filtered_data(
     let claims = auth::verify_token(&state, &token).await?;
     let filters = parse_discovery_filters(raw_query.as_deref())?;
 
-    let current_location =
+    repo::validate_netherlands_cities(&state.db, &filters.locations).await?;
+    let current_location = if let Some(city) = filters.locations.first() {
+        Some(
+            repo::save_city_location_for_identity(
+                &state.db,
+                claims.identity_id(),
+                claims.email.as_deref(),
+                city,
+            )
+            .await?,
+        )
+    } else {
         repo::location_for_identity(&state.db, claims.identity_id(), claims.email.as_deref())
-            .await?;
+            .await?
+    };
     let origin = current_location
         .as_ref()
         .and_then(|location| validated_origin(location).ok());

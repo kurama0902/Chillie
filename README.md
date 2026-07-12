@@ -24,7 +24,7 @@ src/
   repo.rs      users, discovery filters, and atomic likes
   routes.rs    HTTP endpoint handlers
 migrations/
-  0001_init.sql ... 0007_jwt_user_id_and_dislikes.sql
+  0001_init.sql ... 0008_netherlands_cities.sql
 ```
 
 ## Run
@@ -110,6 +110,12 @@ curl --get http://localhost:8080/getFilteredData \
 `distance` is measured from the authenticated user's saved `location.lat` /
 `location.lng`. Results are capped at 100 and contain `userID`, which can be
 passed to `/likeUser`. Emails and inbound likes are not exposed.
+
+When `location[]` is supplied, every name is validated against the supported
+Netherlands city list. The first selected city is saved to the authenticated
+user as `{ city, country, lat, lng }` and becomes the origin for distance
+filtering. City coordinates come from the GeoNames Netherlands dataset
+(CC BY 4.0); the accepted names are listed in `data/netherlands_cities.txt`.
 
 ```json
 [

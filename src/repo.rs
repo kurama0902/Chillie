@@ -168,6 +168,89 @@ pub async fn location_for_identity(
     Ok(location)
 }
 
+/// Resolve a supported Netherlands city and persist its canonical name and
+/// coordinates as the current JWT user's location.
+pub async fn save_city_location_for_identity(
+    pool: &PgPool,
+    identity_id: &str,
+    email: Option<&str>,
+    city_name: &str,
+) -> Result<UserLocation, AppError> {
+    let city = sqlx::query_as::<_, (String, f64, f64)>(
+        "SELECT name, lat, lng FROM netherlands_cities WHERE LOWER(name) = LOWER($1)",
+    )
+    .bind(city_name.trim())
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| AppError::BadRequest(format!("unsupported Netherlands city: {city_name}")))?;
+
+    let location = UserLocation {
+        lat: Some(city.1),
+        lng: Some(city.2),
+        city: Some(city.0),
+        country: Some("Netherlands".into()),
+    };
+
+    let updated =
+        sqlx::query("UPDATE users SET location = $2, updated_at = now() WHERE user_id = $1")
+            .bind(identity_id)
+            .bind(Json(&location))
+            .execute(pool)
+            .await?;
+
+    if updated.rows_affected() == 0 {
+        let Some(email) = email else {
+            return Err(AppError::NotFound(
+                "current user not found; login first".into(),
+            ));
+        };
+        let updated = sqlx::query(
+            "UPDATE users SET user_id = $1, location = $3, updated_at = now() WHERE email = $2",
+        )
+        .bind(identity_id)
+        .bind(email.trim().to_lowercase())
+        .bind(Json(&location))
+        .execute(pool)
+        .await?;
+
+        if updated.rows_affected() == 0 {
+            return Err(AppError::NotFound(
+                "current user not found; login first".into(),
+            ));
+        }
+    }
+
+    Ok(location)
+}
+
+/// Ensure every city filter belongs to the supported Netherlands city list.
+pub async fn validate_netherlands_cities(
+    pool: &PgPool,
+    city_names: &[String],
+) -> Result<(), AppError> {
+    if city_names.is_empty() {
+        return Ok(());
+    }
+
+    let matched = sqlx::query_scalar::<_, String>(
+        "SELECT LOWER(name) FROM netherlands_cities WHERE LOWER(name) = ANY($1)",
+    )
+    .bind(lowercase_values(city_names))
+    .fetch_all(pool)
+    .await?;
+
+    if let Some(unsupported) = city_names
+        .iter()
+        .find(|city| !matched.iter().any(|name| name.eq_ignore_ascii_case(city)))
+    {
+        return Err(AppError::BadRequest(format!(
+            "unsupported Netherlands city: {unsupported}"
+        )));
+    }
+
+    Ok(())
+}
+
 /// Return discovery profiles matching all supplied filters.
 pub async fn get_filtered_users(
     pool: &PgPool,
