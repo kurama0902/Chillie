@@ -212,13 +212,14 @@ async fn basic_user_setup(
         .location
         .parse()
         .map_err(|e| AppError::BadRequest(format!("invalid location: {e}")))?;
-    // Take only the first preferableLocation entry (stored as a single JSONB value).
-    let preferable_location: Option<UserLocation> = body
+    let mut preferable_locations: Vec<String> = body
         .preferable_location
-        .first()
-        .map(|s| s.parse::<UserLocation>())
-        .transpose()
-        .map_err(|e| AppError::BadRequest(format!("invalid preferableLocation: {e}")))?;
+        .iter()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .collect();
+    deduplicate(&mut preferable_locations);
 
     // Persist (upsert) and clear is_new. `isNew` from the body is ignored.
     let user = repo::update_basic_user_setup(
@@ -231,7 +232,7 @@ async fn basic_user_setup(
             interests: body.interests.as_slice(),
             languages: body.languages.as_slice(),
             location: &location,
-            preferable_location: preferable_location.as_ref(),
+            preferable_location: &preferable_locations,
             interested_in: body
                 .interested_in
                 .as_deref()
@@ -387,7 +388,12 @@ fn parse_discovery_filters(raw_query: Option<&str>) -> Result<DiscoveryFilters, 
 
         match key {
             "interestedIn" | "interested_in" => {
-                if !value.is_empty() {
+                if matches!(
+                    value.to_ascii_lowercase().as_str(),
+                    "both" | "all" | "everyone"
+                ) {
+                    filters.interested_in = None;
+                } else if !value.is_empty() {
                     filters.interested_in = Some(value.to_string());
                 }
             }
@@ -553,6 +559,15 @@ mod tests {
     fn rejects_invalid_age_range() {
         let error = parse_discovery_filters(Some("age=40,20")).unwrap_err();
         assert!(matches!(error, AppError::BadRequest(_)));
+    }
+
+    #[test]
+    fn interested_in_both_disables_that_filter() {
+        let filters = parse_discovery_filters(Some("interestedIn=both")).unwrap();
+        assert_eq!(filters.interested_in, None);
+
+        let filters = parse_discovery_filters(Some("interestedIn=everyone")).unwrap();
+        assert_eq!(filters.interested_in, None);
     }
 
     #[test]

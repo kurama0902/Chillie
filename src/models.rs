@@ -49,9 +49,9 @@ pub struct LikeResponse {
 }
 
 /// POST /basicUserSetup request body. `location` arrives as a string (see
-/// `Coordinates::from_str`), `preferableLocation` as an array of such strings —
-/// each is parsed into `{lat,lng}`. `isNew` is accepted for contract symmetry but
-/// ignored — the server always sets it false.
+/// `Coordinates::from_str`); every `preferableLocation` string is preserved.
+/// `isNew` is accepted for contract symmetry but ignored — the server always
+/// sets it false.
 #[derive(Debug, Deserialize)]
 pub struct BasicUserSetupRequest {
     pub name: String,
@@ -90,8 +90,7 @@ pub struct DiscoveryFilters {
     pub age: Option<(i32, i32)>,
 }
 
-/// A geographic point stored as JSONB (`{ lat, lng }`). Used for both `location`
-/// and `preferable_location`.
+/// A geographic point stored as JSONB (`{ lat, lng }`) for `location`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Coordinates {
     pub lat: f64,
@@ -195,7 +194,7 @@ pub struct UserRow {
     pub interests: Option<Vec<String>>,
     pub languages: Option<Vec<String>>,
     pub location: Option<SqlxJson<UserLocation>>,
-    pub preferable_location: Option<SqlxJson<UserLocation>>,
+    pub preferable_location: Vec<String>,
     pub is_new: bool,
     pub job: Option<String>,
     pub description: Option<String>,
@@ -296,9 +295,9 @@ fn format_distance(distance_km: f64) -> String {
 }
 
 /// Shared response body for POST /login and POST /basicUserSetup.
-/// Strings always serialize (missing → `""`) and arrays as `[]`; `location` and
-/// `preferableLocation` may be `null`. `preferableLocation` and `isNew` are
-/// camelCase while the rest are snake_case.
+/// Strings always serialize (missing → `""`) and arrays as `[]`; `location` may
+/// be `null`. `preferableLocation` and `isNew` are camelCase while the rest are
+/// snake_case.
 #[derive(Debug, Serialize)]
 pub struct UserResponse {
     pub name: String,
@@ -310,7 +309,7 @@ pub struct UserResponse {
     pub languages: Vec<String>,
     pub location: Option<UserLocation>,
     #[serde(rename = "preferableLocation")]
-    pub preferable_location: Option<UserLocation>,
+    pub preferable_location: Vec<String>,
     #[serde(rename = "isNew")]
     pub is_new: bool,
 }
@@ -327,7 +326,7 @@ impl From<UserRow> for UserResponse {
             interests: row.interests.unwrap_or_default(),
             languages: row.languages.unwrap_or_default(),
             location: row.location.map(|j| j.0),
-            preferable_location: row.preferable_location.map(|j| j.0),
+            preferable_location: row.preferable_location,
             is_new: row.is_new,
         }
     }
@@ -338,7 +337,7 @@ mod tests {
     use super::*;
 
     /// A brand-new user (every nullable column empty) must still serialize every
-    /// field, with `""`/`[]` defaults; `location`/`preferableLocation` are null.
+    /// field, with `""`/`[]` defaults; only `location` is null.
     #[test]
     fn new_user_response_has_no_null_strings_or_arrays() {
         let row = UserRow {
@@ -351,7 +350,7 @@ mod tests {
             interests: None,
             languages: None,
             location: None,
-            preferable_location: None,
+            preferable_location: Vec::new(),
             is_new: true,
             job: None,
             description: None,
@@ -369,7 +368,7 @@ mod tests {
         assert_eq!(v["interests"], serde_json::json!([]));
         assert_eq!(v["languages"], serde_json::json!([]));
         assert_eq!(v["location"], serde_json::Value::Null);
-        assert_eq!(v["preferableLocation"], serde_json::Value::Null);
+        assert_eq!(v["preferableLocation"], serde_json::json!([]));
         assert_eq!(v["isNew"], true);
     }
 
@@ -404,7 +403,7 @@ mod tests {
                 city: Some("Berlin".into()),
                 country: Some("Germany".into()),
             })),
-            preferable_location: None,
+            preferable_location: Vec::new(),
             is_new: false,
             job: Some("Engineer".into()),
             description: Some("Profile text".into()),

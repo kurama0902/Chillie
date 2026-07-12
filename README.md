@@ -83,7 +83,7 @@ likes, and dislikes.
   "interests": [],
   "languages": [],
   "location": null,
-  "preferableLocation": null,
+  "preferableLocation": [],
   "isNew": true
 }
 ```
@@ -94,6 +94,9 @@ The validated token is echoed back in the response `Authorization` header.
 Requires `Authorization: Bearer <access-token>`. Filters are passed as query
 parameters. Arrays may be repeated, use bracket syntax, be comma-separated, or
 be JSON-encoded.
+
+`interestedIn=both` (also `all` or `everyone`) disables the `interested_in`
+restriction and returns both groups.
 
 ```sh
 curl --get http://localhost:8080/getFilteredData \

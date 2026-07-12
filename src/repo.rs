@@ -75,7 +75,7 @@ pub struct BasicSetup<'a> {
     pub interests: &'a [String],
     pub languages: &'a [String],
     pub location: &'a UserLocation,
-    pub preferable_location: Option<&'a UserLocation>,
+    pub preferable_location: &'a [String],
     pub interested_in: Option<&'a str>,
     pub sexual_orientation: Option<&'a str>,
     pub job: Option<&'a str>,
@@ -120,7 +120,7 @@ pub async fn update_basic_user_setup(
         .bind(input.interests)
         .bind(input.languages)
         .bind(Json(input.location))
-        .bind(input.preferable_location.map(Json))
+        .bind(input.preferable_location)
         .bind(input.interested_in)
         .bind(input.sexual_orientation)
         .bind(input.job)

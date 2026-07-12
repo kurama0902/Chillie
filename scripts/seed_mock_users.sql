@@ -123,7 +123,7 @@ SELECT
         ELSE ARRAY['English', 'French']::TEXT[]
     END,
     jsonb_build_object('lat', lat, 'lng', lng, 'city', city, 'country', 'Netherlands'),
-    NULL,
+    ARRAY[]::TEXT[],
     false,
     interested_in,
     sexual_orientation,
