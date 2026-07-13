@@ -24,7 +24,7 @@ src/
   repo.rs      users, discovery filters, and atomic likes
   routes.rs    HTTP endpoint handlers
 migrations/
-  0001_init.sql ... 0008_netherlands_cities.sql
+  0001_init.sql ... 0010_user_avatar.sql
 ```
 
 ## Run
@@ -84,10 +84,32 @@ likes, and dislikes.
   "languages": [],
   "location": null,
   "preferableLocation": [],
+  "avatar_url": "",
   "isNew": true
 }
 ```
 The validated token is echoed back in the response `Authorization` header.
+
+### `POST /updateAvatar`
+
+Requires `Authorization: Bearer <access-token>` and `multipart/form-data`.
+The image field may be named `avatar`, `image`, or `file`. JPEG, PNG, WebP,
+GIF, HEIC, and HEIF files up to 8 MB are accepted.
+
+```sh
+curl -X POST https://chillie.kemuri.top/updateAvatar \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -F "avatar=@profile.jpg"
+```
+
+```json
+{
+  "avatar_url": "https://chillie.kemuri.top/uploads/8dc1b8ce-5e79-4caa-9d33-92200c280d6f.jpg"
+}
+```
+
+The same URL is returned by subsequent `/login` and `/basicUserSetup`
+responses.
 
 ### `GET /getFilteredData`
 

@@ -8,7 +8,7 @@ use crate::models::{DiscoveryFilters, UserLocation, UserRow};
 
 const USER_COLUMNS: &str = "user_id, name, lastname, email, date_of_birth, \
      profile_photos, interests, languages, location, preferable_location, is_new, \
-     job, description";
+     job, description, avatar_url";
 
 /// Return the user for `email`, inserting a bare record (email only, the rest
 /// NULL) the first time we see them. The upsert makes this atomic and
@@ -415,6 +415,32 @@ pub async fn dislike_user(
 
     tx.commit().await?;
     Ok(())
+}
+
+/// Replace the current JWT user's avatar URL and return the previous value so
+/// the caller can remove an obsolete locally-managed file.
+pub async fn update_avatar_url(
+    pool: &PgPool,
+    current_identity_id: &str,
+    avatar_url: &str,
+) -> Result<Option<String>, AppError> {
+    let mut tx = pool.begin().await?;
+    let previous = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT avatar_url FROM users WHERE user_id = $1 FOR UPDATE",
+    )
+    .bind(current_identity_id)
+    .fetch_optional(&mut *tx)
+    .await?
+    .ok_or_else(|| AppError::NotFound("current user not found; login first".into()))?;
+
+    sqlx::query("UPDATE users SET avatar_url = $2, updated_at = now() WHERE user_id = $1")
+        .bind(current_identity_id)
+        .bind(avatar_url)
+        .execute(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+    Ok(previous)
 }
 
 fn lowercase_values(values: &[String]) -> Vec<String> {

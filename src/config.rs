@@ -1,4 +1,5 @@
 use std::env;
+use std::path::PathBuf;
 
 /// Runtime configuration, loaded from the environment (see `.env.example`).
 /// Auth0 settings reuse the Auth0 SDK names: `issuerBaseURL`, `audience`,
@@ -18,6 +19,8 @@ pub struct Config {
     pub mail_from: String,
     /// OTP lifetime in seconds (spec: 300).
     pub otp_ttl_secs: i64,
+    pub upload_dir: PathBuf,
+    pub public_base_url: String,
 }
 
 impl Config {
@@ -37,6 +40,14 @@ impl Config {
             .ok()
             .and_then(|v| v.trim().parse::<i64>().ok())
             .unwrap_or(300);
+        let upload_dir = env::var("UPLOAD_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from("uploads"));
+        let public_base_url = env::var("PUBLIC_BASE_URL")
+            .unwrap_or_default()
+            .trim()
+            .trim_end_matches('/')
+            .to_string();
 
         Ok(Self {
             database_url,
@@ -47,6 +58,8 @@ impl Config {
             smtp_url,
             mail_from,
             otp_ttl_secs,
+            upload_dir,
+            public_base_url,
         })
     }
 
@@ -71,5 +84,9 @@ impl Config {
     pub fn issuers(&self) -> Vec<String> {
         let base = self.issuer_base();
         vec![format!("{base}/"), base]
+    }
+
+    pub fn avatar_url(&self, filename: &str) -> String {
+        format!("{}/uploads/{filename}", self.public_base_url)
     }
 }

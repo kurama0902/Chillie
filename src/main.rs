@@ -42,6 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .init();
 
     let config = Config::from_env()?;
+    tokio::fs::create_dir_all(&config.upload_dir).await?;
 
     // Postgres pool + run migrations on startup.
     let db = PgPoolOptions::new()

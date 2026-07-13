@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = "0.8"
+axum = { version = "0.8", features = ["multipart"] }
 tokio = { version = "1", features = ["full"] }
 
 sqlx = { version = "0.8", default-features = false, features = [
@@ -31,7 +31,7 @@ url = "2"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 
-tower-http = { version = "0.6", features = ["trace", "cors"] }
+tower-http = { version = "0.6", features = ["trace", "cors", "fs"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
@@ -47,3 +47,4 @@ lettre = { version = "0.11", default-features = false, features = [
 mrml = "6"           # MJML -> responsive HTML for the OTP email.
 argon2 = "0.5"       # Hash the account password and the OTP.
 rand = "0.8"         # Generate the OTP.
+infer = "0.19"       # Validate uploaded avatars by file signature.

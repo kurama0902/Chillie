@@ -48,6 +48,11 @@ pub struct LikeResponse {
     pub is_success: bool,
 }
 
+#[derive(Debug, Serialize)]
+pub struct AvatarResponse {
+    pub avatar_url: String,
+}
+
 /// POST /basicUserSetup request body. `location` arrives as a string (see
 /// `Coordinates::from_str`); every `preferableLocation` string is preserved.
 /// `isNew` is accepted for contract symmetry but ignored — the server always
@@ -198,6 +203,7 @@ pub struct UserRow {
     pub is_new: bool,
     pub job: Option<String>,
     pub description: Option<String>,
+    pub avatar_url: Option<String>,
 }
 
 /// Public discovery result. Email and `people_liked` are intentionally omitted.
@@ -310,6 +316,7 @@ pub struct UserResponse {
     pub location: Option<UserLocation>,
     #[serde(rename = "preferableLocation")]
     pub preferable_location: Vec<String>,
+    pub avatar_url: String,
     #[serde(rename = "isNew")]
     pub is_new: bool,
 }
@@ -327,6 +334,7 @@ impl From<UserRow> for UserResponse {
             languages: row.languages.unwrap_or_default(),
             location: row.location.map(|j| j.0),
             preferable_location: row.preferable_location,
+            avatar_url: row.avatar_url.unwrap_or_default(),
             is_new: row.is_new,
         }
     }
@@ -354,6 +362,7 @@ mod tests {
             is_new: true,
             job: None,
             description: None,
+            avatar_url: None,
         };
 
         let json = serde_json::to_string_pretty(&UserResponse::from(row)).unwrap();
@@ -369,6 +378,7 @@ mod tests {
         assert_eq!(v["languages"], serde_json::json!([]));
         assert_eq!(v["location"], serde_json::Value::Null);
         assert_eq!(v["preferableLocation"], serde_json::json!([]));
+        assert_eq!(v["avatar_url"], "");
         assert_eq!(v["isNew"], true);
     }
 
@@ -407,6 +417,7 @@ mod tests {
             is_new: false,
             job: Some("Engineer".into()),
             description: Some("Profile text".into()),
+            avatar_url: Some("https://example.com/avatar.jpg".into()),
         };
 
         let json =

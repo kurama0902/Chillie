@@ -1,23 +1,29 @@
-use axum::extract::{RawQuery, State};
+use axum::extract::{DefaultBodyLimit, Multipart, RawQuery, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::NaiveDate;
+use std::path::Path;
+use tower_http::services::ServeDir;
 
 use crate::auth;
 use crate::email;
 use crate::error::AppError;
 use crate::models::{
-    BasicUserSetupRequest, DiscoveryFilters, FilteredUserResponse, LikeRequest, LikeResponse,
-    LoginRequest, SignUpRequest, UserLocation, UserResponse, VerifyEmailRequest,
+    AvatarResponse, BasicUserSetupRequest, DiscoveryFilters, FilteredUserResponse, LikeRequest,
+    LikeResponse, LoginRequest, SignUpRequest, UserLocation, UserResponse, VerifyEmailRequest,
     VerifyEmailResponse,
 };
 use crate::otp;
 use crate::repo;
 use crate::AppState;
 
+const MAX_AVATAR_BYTES: usize = 8 * 1024 * 1024;
+const MAX_MULTIPART_BYTES: usize = MAX_AVATAR_BYTES + 1024 * 1024;
+
 pub fn router(state: AppState) -> Router {
+    let upload_dir = state.config.upload_dir.clone();
     Router::new()
         .route("/health", get(health))
         .route("/signUp", post(sign_up))
@@ -28,6 +34,9 @@ pub fn router(state: AppState) -> Router {
         .route("/likeUser", post(like_user))
         .route("/like", post(like_user))
         .route("/dislikeUser", post(dislike_user))
+        .route("/updateAvatar", post(update_avatar))
+        .nest_service("/uploads", ServeDir::new(upload_dir))
+        .layer(DefaultBodyLimit::max(MAX_MULTIPART_BYTES))
         .with_state(state)
 }
 
@@ -370,6 +379,102 @@ async fn dislike_user(
     Ok(Json(LikeResponse { is_success: true }))
 }
 
+/// POST /updateAvatar
+///
+/// Accepts multipart/form-data with an `avatar`, `image`, or `file` field.
+async fn update_avatar(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    mut multipart: Multipart,
+) -> Result<Json<AvatarResponse>, AppError> {
+    let token = auth::extract_bearer(&headers)?;
+    let claims = auth::verify_token(&state, &token).await?;
+    let mut image = None;
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| AppError::BadRequest(format!("invalid multipart body: {e}")))?
+    {
+        if !matches!(field.name(), Some("avatar" | "image" | "file")) {
+            continue;
+        }
+        let bytes = field
+            .bytes()
+            .await
+            .map_err(|e| AppError::BadRequest(format!("invalid image field: {e}")))?;
+        if bytes.is_empty() || bytes.len() > MAX_AVATAR_BYTES {
+            return Err(AppError::BadRequest(
+                "avatar must be between 1 byte and 8 MB".into(),
+            ));
+        }
+        image = Some(bytes);
+        break;
+    }
+
+    let image = image.ok_or_else(|| {
+        AppError::BadRequest("multipart field avatar, image, or file is required".into())
+    })?;
+    let kind = infer::get(&image)
+        .filter(|kind| is_supported_avatar_mime(kind.mime_type()))
+        .ok_or_else(|| {
+            AppError::BadRequest("avatar must be JPEG, PNG, WebP, GIF, HEIC, or HEIF".into())
+        })?;
+
+    let id = uuid::Uuid::new_v4();
+    let filename = format!("{id}.{}", kind.extension());
+    let temporary_path = state.config.upload_dir.join(format!(".{id}.uploading"));
+    let final_path = state.config.upload_dir.join(&filename);
+
+    tokio::fs::write(&temporary_path, &image)
+        .await
+        .map_err(|e| AppError::Internal(format!("could not write avatar: {e}")))?;
+    if let Err(error) = tokio::fs::rename(&temporary_path, &final_path).await {
+        let _ = tokio::fs::remove_file(&temporary_path).await;
+        return Err(AppError::Internal(format!(
+            "could not finalize avatar: {error}"
+        )));
+    }
+
+    let avatar_url = state.config.avatar_url(&filename);
+    let previous = match repo::update_avatar_url(&state.db, claims.identity_id(), &avatar_url).await
+    {
+        Ok(previous) => previous,
+        Err(error) => {
+            let _ = tokio::fs::remove_file(&final_path).await;
+            return Err(error);
+        }
+    };
+
+    if let Some(previous) = previous {
+        remove_previous_local_avatar(&state, &previous).await;
+    }
+
+    Ok(Json(AvatarResponse { avatar_url }))
+}
+
+fn is_supported_avatar_mime(mime: &str) -> bool {
+    matches!(
+        mime,
+        "image/jpeg" | "image/png" | "image/webp" | "image/gif" | "image/heic" | "image/heif"
+    )
+}
+
+async fn remove_previous_local_avatar(state: &AppState, avatar_url: &str) {
+    let Some((_, filename)) = avatar_url.rsplit_once("/uploads/") else {
+        return;
+    };
+    if filename.is_empty()
+        || Path::new(filename)
+            .file_name()
+            .and_then(|name| name.to_str())
+            != Some(filename)
+    {
+        return;
+    }
+    let _ = tokio::fs::remove_file(state.config.upload_dir.join(filename)).await;
+}
+
 fn validated_target_user_id(user_id: &str) -> Result<&str, AppError> {
     let user_id = user_id.trim();
     if user_id.is_empty() || user_id.len() > 512 || user_id.chars().any(char::is_control) {
@@ -606,5 +711,14 @@ mod tests {
         );
         assert!(validated_target_user_id(" ").is_err());
         assert!(validated_target_user_id("bad\nuser").is_err());
+    }
+
+    #[test]
+    fn accepts_only_supported_avatar_mime_types() {
+        assert!(is_supported_avatar_mime("image/jpeg"));
+        assert!(is_supported_avatar_mime("image/png"));
+        assert!(is_supported_avatar_mime("image/heic"));
+        assert!(!is_supported_avatar_mime("image/svg+xml"));
+        assert!(!is_supported_avatar_mime("application/pdf"));
     }
 }
