@@ -65,7 +65,10 @@ generated AS (
             c.hobbies[1 + ((n * 5) % array_length(c.hobbies, 1))],
             c.hobbies[1 + ((n * 7 + 3) % array_length(c.hobbies, 1))],
             c.hobbies[1 + ((n * 11 + 9) % array_length(c.hobbies, 1))]
-        ]::TEXT[] AS selected_hobbies,
+        ]::TEXT[] || CASE
+            WHEN n % 20 = 0 THEN ARRAY['Animation']::TEXT[]
+            ELSE ARRAY[]::TEXT[]
+        END AS selected_hobbies,
         city.city,
         city.lat + ((((n * 19) % 101) - 50)::DOUBLE PRECISION / 10000.0) AS lat,
         city.lng + ((((n * 23) % 101) - 50)::DOUBLE PRECISION / 10000.0) AS lng,
