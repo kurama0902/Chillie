@@ -204,6 +204,7 @@ pub struct UserRow {
     pub job: Option<String>,
     pub description: Option<String>,
     pub avatar_url: Option<String>,
+    pub sexual_orientation: Option<String>,
 }
 
 /// Public discovery result. Email and `people_liked` are intentionally omitted.
@@ -302,8 +303,7 @@ fn format_distance(distance_km: f64) -> String {
 
 /// Shared response body for POST /login and POST /basicUserSetup.
 /// Strings always serialize (missing → `""`) and arrays as `[]`; `location` may
-/// be `null`. `preferableLocation` and `isNew` are camelCase while the rest are
-/// snake_case.
+/// be `null`. Client-facing compatibility fields keep their established casing.
 #[derive(Debug, Serialize)]
 pub struct UserResponse {
     pub name: String,
@@ -317,6 +317,8 @@ pub struct UserResponse {
     #[serde(rename = "preferableLocation")]
     pub preferable_location: Vec<String>,
     pub avatar_url: String,
+    #[serde(rename = "sexualOrientation")]
+    pub sexual_orientation: String,
     #[serde(rename = "isNew")]
     pub is_new: bool,
 }
@@ -335,6 +337,7 @@ impl From<UserRow> for UserResponse {
             location: row.location.map(|j| j.0),
             preferable_location: row.preferable_location,
             avatar_url: row.avatar_url.unwrap_or_default(),
+            sexual_orientation: row.sexual_orientation.unwrap_or_default(),
             is_new: row.is_new,
         }
     }
@@ -363,6 +366,7 @@ mod tests {
             job: None,
             description: None,
             avatar_url: None,
+            sexual_orientation: None,
         };
 
         let json = serde_json::to_string_pretty(&UserResponse::from(row)).unwrap();
@@ -379,6 +383,7 @@ mod tests {
         assert_eq!(v["location"], serde_json::Value::Null);
         assert_eq!(v["preferableLocation"], serde_json::json!([]));
         assert_eq!(v["avatar_url"], "");
+        assert_eq!(v["sexualOrientation"], "");
         assert_eq!(v["isNew"], true);
     }
 
@@ -418,7 +423,11 @@ mod tests {
             job: Some("Engineer".into()),
             description: Some("Profile text".into()),
             avatar_url: Some("https://example.com/avatar.jpg".into()),
+            sexual_orientation: Some("Pansexual".into()),
         };
+
+        let profile_json = serde_json::to_value(UserResponse::from(row.clone())).unwrap();
+        assert_eq!(profile_json["sexualOrientation"], "Pansexual");
 
         let json =
             serde_json::to_value(FilteredUserResponse::from_user(row, Some((52.52, 13.405))))

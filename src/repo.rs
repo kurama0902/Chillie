@@ -8,7 +8,7 @@ use crate::models::{DiscoveryFilters, UserLocation, UserRow};
 
 const USER_COLUMNS: &str = "user_id, name, lastname, email, date_of_birth, \
      profile_photos, interests, languages, location, preferable_location, is_new, \
-     job, description, avatar_url";
+     job, description, avatar_url, sexual_orientation";
 
 /// Return the user for `email`, inserting a bare record (email only, the rest
 /// NULL) the first time we see them. The upsert makes this atomic and

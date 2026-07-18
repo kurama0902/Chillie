@@ -85,6 +85,7 @@ likes, and dislikes.
   "location": null,
   "preferableLocation": [],
   "avatar_url": "",
+  "sexualOrientation": "",
   "isNew": true
 }
 ```
