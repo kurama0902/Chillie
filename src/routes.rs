@@ -1,3 +1,4 @@
+use axum::body::Bytes;
 use axum::extract::{DefaultBodyLimit, Multipart, RawQuery, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -189,12 +190,14 @@ fn login_fingerprint(
 async fn basic_user_setup(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(body): Json<BasicUserSetupRequest>,
+    multipart: Multipart,
 ) -> Result<Response, AppError> {
     // Authenticate exactly like /login.
     let token = auth::extract_bearer(&headers)?;
     let claims = auth::verify_token(&state, &token).await?;
     tracing::debug!(sub = %claims.sub, "authenticated basicUserSetup request");
+
+    let (body, avatar_image) = parse_basic_user_setup_form(multipart).await?;
 
     // Normalize + validate the email, and enforce token/identity match.
     let email = body.email.trim().to_lowercase();
@@ -234,6 +237,7 @@ async fn basic_user_setup(
     let user = repo::update_basic_user_setup(
         &state.db,
         &repo::BasicSetup {
+            user_id: claims.identity_id(),
             email: email.as_str(),
             name: body.name.trim(),
             lastname: body.lastname.trim(),
@@ -265,7 +269,11 @@ async fn basic_user_setup(
         },
     )
     .await?;
-    let payload = UserResponse::from(user);
+    let mut payload = UserResponse::from(user);
+
+    if let Some(image) = avatar_image {
+        payload.avatar_url = store_avatar_for_identity(&state, claims.identity_id(), image).await?;
+    }
 
     // Echo the still-valid token back, mirroring /login.
     let mut response = (StatusCode::OK, Json(payload)).into_response();
@@ -274,6 +282,116 @@ async fn basic_user_setup(
     }
 
     Ok(response)
+}
+
+#[derive(Default)]
+struct BasicUserSetupForm {
+    name: Option<String>,
+    lastname: Option<String>,
+    email: Option<String>,
+    date_of_birth: Option<String>,
+    interests: Vec<String>,
+    languages: Vec<String>,
+    location: Option<String>,
+    preferable_location: Vec<String>,
+    interested_in: Option<String>,
+    sexual_orientation: Option<String>,
+    job: Option<String>,
+    description: Option<String>,
+}
+
+async fn parse_basic_user_setup_form(
+    mut multipart: Multipart,
+) -> Result<(BasicUserSetupRequest, Option<Bytes>), AppError> {
+    let mut form = BasicUserSetupForm::default();
+    let mut avatar_image = None;
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| AppError::BadRequest(format!("invalid multipart body: {e}")))?
+    {
+        let Some(name) = field.name().map(str::to_string) else {
+            continue;
+        };
+
+        if matches!(name.as_str(), "avatar_image" | "avatarImage") {
+            let bytes = field
+                .bytes()
+                .await
+                .map_err(|e| AppError::BadRequest(format!("invalid avatar_image field: {e}")))?;
+            validate_avatar_bytes(&bytes)?;
+            avatar_image = Some(bytes);
+            continue;
+        }
+
+        let value = field
+            .text()
+            .await
+            .map_err(|e| AppError::BadRequest(format!("invalid {name} field: {e}")))?;
+        apply_basic_user_setup_field(&mut form, &name, &value)?;
+    }
+
+    deduplicate(&mut form.interests);
+    deduplicate(&mut form.languages);
+    deduplicate(&mut form.preferable_location);
+
+    Ok((
+        BasicUserSetupRequest {
+            name: required_form_field(form.name, "name")?,
+            lastname: required_form_field(form.lastname, "lastname")?,
+            email: required_form_field(form.email, "email")?,
+            date_of_birth: required_form_field(form.date_of_birth, "date_of_birth")?,
+            interests: form.interests,
+            languages: form.languages,
+            location: required_form_field(form.location, "location")?,
+            preferable_location: form.preferable_location,
+            is_new: false,
+            interested_in: form.interested_in,
+            sexual_orientation: form.sexual_orientation,
+            job: form.job,
+            description: form.description,
+        },
+        avatar_image,
+    ))
+}
+
+fn apply_basic_user_setup_field(
+    form: &mut BasicUserSetupForm,
+    name: &str,
+    value: &str,
+) -> Result<(), AppError> {
+    match name {
+        "name" => form.name = Some(value.to_string()),
+        "lastname" => form.lastname = Some(value.to_string()),
+        "email" => form.email = Some(value.to_string()),
+        "date_of_birth" | "dateOfBirth" => form.date_of_birth = Some(value.to_string()),
+        "location" => form.location = Some(value.to_string()),
+        "interestedIn" | "interested_in" => form.interested_in = Some(value.to_string()),
+        "sexualOrientation" | "sexual_orientation" => {
+            form.sexual_orientation = Some(value.to_string())
+        }
+        "job" => form.job = Some(value.to_string()),
+        "description" => form.description = Some(value.to_string()),
+        key if is_array_key(key, "interests") || is_array_key(key, "hobbies") => {
+            extend_string_values(&mut form.interests, value)?;
+        }
+        key if is_array_key(key, "languages") => {
+            extend_string_values(&mut form.languages, value)?;
+        }
+        key if is_array_key(key, "preferableLocation")
+            || is_array_key(key, "preferable_location") =>
+        {
+            extend_string_values(&mut form.preferable_location, value)?;
+        }
+        _ => {}
+    }
+
+    Ok(())
+}
+
+fn required_form_field(value: Option<String>, name: &str) -> Result<String, AppError> {
+    value.ok_or_else(|| AppError::BadRequest(format!("multipart field {name} is required")))
 }
 
 /// GET /getFilteredData
@@ -403,11 +521,7 @@ async fn update_avatar(
             .bytes()
             .await
             .map_err(|e| AppError::BadRequest(format!("invalid image field: {e}")))?;
-        if bytes.is_empty() || bytes.len() > MAX_AVATAR_BYTES {
-            return Err(AppError::BadRequest(
-                "avatar must be between 1 byte and 8 MB".into(),
-            ));
-        }
+        validate_avatar_bytes(&bytes)?;
         image = Some(bytes);
         break;
     }
@@ -415,11 +529,32 @@ async fn update_avatar(
     let image = image.ok_or_else(|| {
         AppError::BadRequest("multipart field avatar, image, or file is required".into())
     })?;
-    let kind = infer::get(&image)
+    let avatar_url = store_avatar_for_identity(&state, claims.identity_id(), image).await?;
+
+    Ok(Json(AvatarResponse { avatar_url }))
+}
+
+fn validate_avatar_bytes(image: &[u8]) -> Result<(), AppError> {
+    if image.is_empty() || image.len() > MAX_AVATAR_BYTES {
+        return Err(AppError::BadRequest(
+            "avatar must be between 1 byte and 8 MB".into(),
+        ));
+    }
+    infer::get(image)
         .filter(|kind| is_supported_avatar_mime(kind.mime_type()))
         .ok_or_else(|| {
             AppError::BadRequest("avatar must be JPEG, PNG, WebP, GIF, HEIC, or HEIF".into())
         })?;
+    Ok(())
+}
+
+async fn store_avatar_for_identity(
+    state: &AppState,
+    identity_id: &str,
+    image: Bytes,
+) -> Result<String, AppError> {
+    validate_avatar_bytes(&image)?;
+    let kind = infer::get(&image).expect("validated avatar type must remain detectable");
 
     let id = uuid::Uuid::new_v4();
     let filename = format!("{id}.{}", kind.extension());
@@ -437,8 +572,7 @@ async fn update_avatar(
     }
 
     let avatar_url = state.config.avatar_url(&filename);
-    let previous = match repo::update_avatar_url(&state.db, claims.identity_id(), &avatar_url).await
-    {
+    let previous = match repo::update_avatar_url(&state.db, identity_id, &avatar_url).await {
         Ok(previous) => previous,
         Err(error) => {
             let _ = tokio::fs::remove_file(&final_path).await;
@@ -447,10 +581,10 @@ async fn update_avatar(
     };
 
     if let Some(previous) = previous {
-        remove_previous_local_avatar(&state, &previous).await;
+        remove_previous_local_avatar(state, &previous).await;
     }
 
-    Ok(Json(AvatarResponse { avatar_url }))
+    Ok(avatar_url)
 }
 
 fn is_supported_avatar_mime(mime: &str) -> bool {
@@ -720,5 +854,23 @@ mod tests {
         assert!(is_supported_avatar_mime("image/heic"));
         assert!(!is_supported_avatar_mime("image/svg+xml"));
         assert!(!is_supported_avatar_mime("application/pdf"));
+    }
+
+    #[test]
+    fn maps_basic_setup_form_fields_and_arrays() {
+        let mut form = BasicUserSetupForm::default();
+        apply_basic_user_setup_field(&mut form, "sexualOrientation", "bisexual").unwrap();
+        apply_basic_user_setup_field(&mut form, "interests[]", "Acting").unwrap();
+        apply_basic_user_setup_field(&mut form, "hobbies", "Travel,Cooking").unwrap();
+        apply_basic_user_setup_field(
+            &mut form,
+            "preferableLocation",
+            r#"["Amsterdam","Utrecht"]"#,
+        )
+        .unwrap();
+
+        assert_eq!(form.sexual_orientation.as_deref(), Some("bisexual"));
+        assert_eq!(form.interests, ["Acting", "Travel", "Cooking"]);
+        assert_eq!(form.preferable_location, ["Amsterdam", "Utrecht"]);
     }
 }

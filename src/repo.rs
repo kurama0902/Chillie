@@ -68,6 +68,7 @@ pub async fn mark_email_verified(pool: &PgPool, email: &str) -> Result<(), AppEr
 
 /// Borrowed inputs for `update_basic_user_setup`.
 pub struct BasicSetup<'a> {
+    pub user_id: &'a str,
     pub email: &'a str,
     pub name: &'a str,
     pub lastname: &'a str,
@@ -91,11 +92,12 @@ pub async fn update_basic_user_setup(
 ) -> Result<UserRow, AppError> {
     let sql = format!(
         "INSERT INTO users \
-             (email, name, lastname, date_of_birth, interests, languages, \
+             (user_id, email, name, lastname, date_of_birth, interests, languages, \
               location, preferable_location, interested_in, sexual_orientation, \
               job, description, is_new, updated_at) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false, now()) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, false, now()) \
          ON CONFLICT (email) DO UPDATE SET \
+             user_id = EXCLUDED.user_id, \
              name = EXCLUDED.name, \
              lastname = EXCLUDED.lastname, \
              date_of_birth = EXCLUDED.date_of_birth, \
@@ -113,6 +115,7 @@ pub async fn update_basic_user_setup(
     );
 
     let user = sqlx::query_as::<_, UserRow>(&sql)
+        .bind(input.user_id)
         .bind(input.email)
         .bind(input.name)
         .bind(input.lastname)
