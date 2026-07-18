@@ -90,6 +90,7 @@ pub struct DiscoveryFilters {
     pub interested_in: Option<String>,
     pub locations: Vec<String>,
     pub hobbies: Vec<String>,
+    pub languages: Vec<String>,
     pub sexual_orientations: Vec<String>,
     pub distance_km: Option<f64>,
     pub age: Option<(i32, i32)>,

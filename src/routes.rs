@@ -641,11 +641,17 @@ fn parse_discovery_filters(raw_query: Option<&str>) -> Result<DiscoveryFilters, 
                     filters.distance_km = Some(parse_distance(value)?);
                 }
             }
-            key if is_array_key(key, "location") => {
+            key if is_array_key(key, "location")
+                || is_array_key(key, "preferableLocation")
+                || is_array_key(key, "preferable_location") =>
+            {
                 extend_string_values(&mut filters.locations, value)?;
             }
-            key if is_array_key(key, "hobbies") => {
+            key if is_array_key(key, "hobbies") || is_array_key(key, "interests") => {
                 extend_string_values(&mut filters.hobbies, value)?;
+            }
+            key if is_array_key(key, "languages") => {
+                extend_string_values(&mut filters.languages, value)?;
             }
             key if is_array_key(key, "sexualOrientation")
                 || is_array_key(key, "sexual_orientation") =>
@@ -661,6 +667,7 @@ fn parse_discovery_filters(raw_query: Option<&str>) -> Result<DiscoveryFilters, 
 
     deduplicate(&mut filters.locations);
     deduplicate(&mut filters.hobbies);
+    deduplicate(&mut filters.languages);
     deduplicate(&mut filters.sexual_orientations);
 
     if !ages.is_empty() {
@@ -782,16 +789,28 @@ mod tests {
     #[test]
     fn parses_discovery_arrays_in_common_query_formats() {
         let filters = parse_discovery_filters(Some(
-            "interestedIn=women&location[]=Berlin&location[]=Paris&hobbies=music,sport&sexualOrientation=%5B%22straight%22%2C%22bi%22%5D&distance=25km&age[]=21&age[]=35",
+            "interestedIn=both&distance=40&age[]=18&age[]=96&sexualOrientation=Straight&interests[]=Animation&languages[]=English&preferableLocation[]=Amsterdam",
         ))
         .unwrap();
 
-        assert_eq!(filters.interested_in.as_deref(), Some("women"));
+        assert_eq!(filters.interested_in, None);
+        assert_eq!(filters.locations, ["Amsterdam"]);
+        assert_eq!(filters.hobbies, ["Animation"]);
+        assert_eq!(filters.languages, ["English"]);
+        assert_eq!(filters.sexual_orientations, ["Straight"]);
+        assert_eq!(filters.distance_km, Some(40.0));
+        assert_eq!(filters.age, Some((18, 96)));
+    }
+
+    #[test]
+    fn keeps_legacy_discovery_filter_names_compatible() {
+        let filters = parse_discovery_filters(Some(
+            "location[]=Berlin&location[]=Paris&hobbies=music,sport",
+        ))
+        .unwrap();
+
         assert_eq!(filters.locations, ["Berlin", "Paris"]);
         assert_eq!(filters.hobbies, ["music", "sport"]);
-        assert_eq!(filters.sexual_orientations, ["straight", "bi"]);
-        assert_eq!(filters.distance_km, Some(25.0));
-        assert_eq!(filters.age, Some((21, 35)));
     }
 
     #[test]

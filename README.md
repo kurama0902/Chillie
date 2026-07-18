@@ -124,13 +124,14 @@ restriction and returns both groups.
 ```sh
 curl --get http://localhost:8080/getFilteredData \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
-  --data-urlencode "interestedIn=women" \
-  --data-urlencode "location[]=Berlin" \
-  --data-urlencode "hobbies=music,sport" \
-  --data-urlencode 'sexualOrientation=["straight","bisexual"]' \
-  --data-urlencode "distance=25km" \
-  --data-urlencode "age[]=21" \
-  --data-urlencode "age[]=35"
+  --data-urlencode "interestedIn=both" \
+  --data-urlencode "preferableLocation[]=Amsterdam" \
+  --data-urlencode "interests[]=Animation" \
+  --data-urlencode "languages[]=English" \
+  --data-urlencode "sexualOrientation=Straight" \
+  --data-urlencode "distance=40" \
+  --data-urlencode "age[]=18" \
+  --data-urlencode "age[]=96"
 ```
 
 `distance` is measured from the authenticated user's saved `location.lat` /

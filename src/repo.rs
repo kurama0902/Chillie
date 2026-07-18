@@ -305,6 +305,13 @@ pub async fn get_filtered_users(
             .push("))");
     }
 
+    if !filters.languages.is_empty() {
+        query
+            .push(" AND EXISTS (SELECT 1 FROM unnest(COALESCE(languages, ARRAY[]::TEXT[])) AS spoken_language WHERE LOWER(spoken_language) = ANY(")
+            .push_bind(lowercase_values(&filters.languages))
+            .push("))");
+    }
+
     if !filters.sexual_orientations.is_empty() {
         query
             .push(" AND LOWER(COALESCE(sexual_orientation, '')) = ANY(")
