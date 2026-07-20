@@ -112,6 +112,33 @@ curl -X POST https://chillie.kemuri.top/updateAvatar \
 The same URL is returned by subsequent `/login` and `/basicUserSetup`
 responses.
 
+### `POST /updateProfile`
+
+Requires `Authorization: Bearer <access-token>` and `multipart/form-data`.
+Text fields are `name`, `lastname`, `date_of_birth`, `sexualOrientation`, and
+`location`. Arrays use repeated `interests[]`, `languages[]`, and
+`preferableLocation[]` fields.
+
+`profile_photos[]` is mixed: send an existing URL to retain that photo or an
+image file to upload a new one. Omitted old URLs are removed from the profile,
+and locally managed files are deleted. The response is the updated user object.
+At most 10 photos are accepted, with an 8 MB limit per uploaded image.
+
+```sh
+curl -X POST https://chillie.kemuri.top/updateProfile \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -F "name=Dimitrii" \
+  -F "lastname=Grinciuc" \
+  -F "date_of_birth=2004/02/09" \
+  -F "sexualOrientation=Pansexual" \
+  -F "location=Deventer" \
+  -F "interests[]=Programming" \
+  -F "languages[]=English" \
+  -F "preferableLocation[]=Amsterdam" \
+  -F "profile_photos[]=https://chillie.kemuri.top/uploads/kept.jpg" \
+  -F "profile_photos[]=@new-photo.jpg"
+```
+
 ### `GET /getFilteredData`
 
 Requires `Authorization: Bearer <access-token>`. Filters are passed as query

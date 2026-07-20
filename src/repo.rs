@@ -83,6 +83,20 @@ pub struct BasicSetup<'a> {
     pub description: Option<&'a str>,
 }
 
+/// Borrowed inputs for replacing the authenticated user's editable profile.
+pub struct ProfileUpdate<'a> {
+    pub name: &'a str,
+    pub lastname: &'a str,
+    pub date_of_birth: NaiveDate,
+    pub sexual_orientation: &'a str,
+    pub location: &'a UserLocation,
+    pub interests: &'a [String],
+    pub languages: &'a [String],
+    pub preferable_location: &'a [String],
+    pub kept_profile_photos: &'a [String],
+    pub new_profile_photos: &'a [String],
+}
+
 /// Write the user's basic profile and clear `is_new`. Upsert by email so the call
 /// is idempotent and works even if the row does not exist yet; `RETURNING` yields
 /// the full row either way.
@@ -134,6 +148,67 @@ pub async fn update_basic_user_setup(
     Ok(user)
 }
 
+/// Replace every editable profile field for the JWT identity. The row is
+/// locked while kept photo URLs are checked against the previous value, so a
+/// concurrent update cannot retain or delete the wrong upload.
+pub async fn update_profile_for_identity(
+    pool: &PgPool,
+    identity_id: &str,
+    input: &ProfileUpdate<'_>,
+) -> Result<(UserRow, Vec<String>), AppError> {
+    let mut tx = pool.begin().await?;
+    let previous_photos = sqlx::query_scalar::<_, Option<Vec<String>>>(
+        "SELECT profile_photos FROM users WHERE user_id = $1 FOR UPDATE",
+    )
+    .bind(identity_id)
+    .fetch_optional(&mut *tx)
+    .await?
+    .ok_or_else(|| AppError::NotFound("current user not found; login first".into()))?
+    .unwrap_or_default();
+
+    if let Some(url) = input
+        .kept_profile_photos
+        .iter()
+        .find(|url| !previous_photos.contains(url))
+    {
+        return Err(AppError::BadRequest(format!(
+            "profile photo URL does not belong to the current user: {url}"
+        )));
+    }
+
+    let profile_photos: Vec<String> = input
+        .kept_profile_photos
+        .iter()
+        .chain(input.new_profile_photos.iter())
+        .cloned()
+        .collect();
+    let sql = format!(
+        "UPDATE users SET \
+             name = $2, lastname = $3, date_of_birth = $4, \
+             sexual_orientation = $5, location = $6, interests = $7, \
+             languages = $8, preferable_location = $9, profile_photos = $10, \
+             is_new = false, updated_at = now() \
+         WHERE user_id = $1 \
+         RETURNING {USER_COLUMNS}"
+    );
+    let user = sqlx::query_as::<_, UserRow>(&sql)
+        .bind(identity_id)
+        .bind(input.name)
+        .bind(input.lastname)
+        .bind(input.date_of_birth)
+        .bind(input.sexual_orientation)
+        .bind(Json(input.location))
+        .bind(input.interests)
+        .bind(input.languages)
+        .bind(input.preferable_location)
+        .bind(&profile_photos)
+        .fetch_one(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+    Ok((user, previous_photos))
+}
+
 /// Resolve the current user's saved location from the JWT identity, then fall
 /// back to the verified token email for users who have not logged in since the
 /// `user_id` migration.
@@ -179,20 +254,7 @@ pub async fn save_city_location_for_identity(
     email: Option<&str>,
     city_name: &str,
 ) -> Result<UserLocation, AppError> {
-    let city = sqlx::query_as::<_, (String, f64, f64)>(
-        "SELECT name, lat, lng FROM netherlands_cities WHERE LOWER(name) = LOWER($1)",
-    )
-    .bind(city_name.trim())
-    .fetch_optional(pool)
-    .await?
-    .ok_or_else(|| AppError::BadRequest(format!("unsupported Netherlands city: {city_name}")))?;
-
-    let location = UserLocation {
-        lat: Some(city.1),
-        lng: Some(city.2),
-        city: Some(city.0),
-        country: Some("Netherlands".into()),
-    };
+    let location = resolve_netherlands_city(pool, city_name).await?;
 
     let updated =
         sqlx::query("UPDATE users SET location = $2, updated_at = now() WHERE user_id = $1")
@@ -223,6 +285,28 @@ pub async fn save_city_location_for_identity(
         }
     }
 
+    Ok(location)
+}
+
+/// Resolve one supported Netherlands city without modifying a user row.
+pub async fn resolve_netherlands_city(
+    pool: &PgPool,
+    city_name: &str,
+) -> Result<UserLocation, AppError> {
+    let city = sqlx::query_as::<_, (String, f64, f64)>(
+        "SELECT name, lat, lng FROM netherlands_cities WHERE LOWER(name) = LOWER($1)",
+    )
+    .bind(city_name.trim())
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| AppError::BadRequest(format!("unsupported Netherlands city: {city_name}")))?;
+
+    let location = UserLocation {
+        lat: Some(city.1),
+        lng: Some(city.2),
+        city: Some(city.0),
+        country: Some("Netherlands".into()),
+    };
     Ok(location)
 }
 

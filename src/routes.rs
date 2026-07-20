@@ -21,7 +21,8 @@ use crate::repo;
 use crate::AppState;
 
 const MAX_AVATAR_BYTES: usize = 8 * 1024 * 1024;
-const MAX_MULTIPART_BYTES: usize = MAX_AVATAR_BYTES + 1024 * 1024;
+const MAX_PROFILE_PHOTOS: usize = 10;
+const MAX_MULTIPART_BYTES: usize = MAX_PROFILE_PHOTOS * MAX_AVATAR_BYTES + 1024 * 1024;
 
 pub fn router(state: AppState) -> Router {
     let upload_dir = state.config.upload_dir.clone();
@@ -36,6 +37,7 @@ pub fn router(state: AppState) -> Router {
         .route("/like", post(like_user))
         .route("/dislikeUser", post(dislike_user))
         .route("/updateAvatar", post(update_avatar))
+        .route("/updateProfile", post(update_profile))
         .nest_service("/uploads", ServeDir::new(upload_dir))
         .layer(DefaultBodyLimit::max(MAX_MULTIPART_BYTES))
         .with_state(state)
@@ -213,11 +215,7 @@ async fn basic_user_setup(
     }
 
     // Parse the date. Accept "YYYY-MM-DD", "YYYY/MM/DD", and ISO-8601 datetimes.
-    let dob_str = body.date_of_birth.trim();
-    let dob_date_part = dob_str.split('T').next().unwrap_or(dob_str);
-    let dob_normalized = dob_date_part.replace('/', "-");
-    let date_of_birth = NaiveDate::parse_from_str(&dob_normalized, "%Y-%m-%d")
-        .map_err(|_| AppError::BadRequest("invalid date_of_birth (expected YYYY-MM-DD)".into()))?;
+    let date_of_birth = parse_date_of_birth(&body.date_of_birth)?;
 
     // Parse location: accepts "lat,lng" or a plain city name.
     let location: UserLocation = body
@@ -320,7 +318,7 @@ async fn parse_basic_user_setup_form(
                 .bytes()
                 .await
                 .map_err(|e| AppError::BadRequest(format!("invalid avatar_image field: {e}")))?;
-            validate_avatar_bytes(&bytes)?;
+            validate_image_bytes(&bytes, "avatar")?;
             avatar_image = Some(bytes);
             continue;
         }
@@ -392,6 +390,212 @@ fn apply_basic_user_setup_field(
 
 fn required_form_field(value: Option<String>, name: &str) -> Result<String, AppError> {
     value.ok_or_else(|| AppError::BadRequest(format!("multipart field {name} is required")))
+}
+
+fn required_non_empty_form_field(value: Option<String>, name: &str) -> Result<String, AppError> {
+    let value = required_form_field(value, name)?;
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(AppError::BadRequest(format!(
+            "multipart field {name} cannot be empty"
+        )));
+    }
+    Ok(value.to_string())
+}
+
+fn parse_date_of_birth(raw: &str) -> Result<NaiveDate, AppError> {
+    let raw = raw.trim();
+    let date_part = raw.split('T').next().unwrap_or(raw);
+    let normalized = date_part.replace('/', "-");
+    NaiveDate::parse_from_str(&normalized, "%Y-%m-%d")
+        .map_err(|_| AppError::BadRequest("invalid date_of_birth (expected YYYY-MM-DD)".into()))
+}
+
+#[derive(Default)]
+struct UpdateProfileForm {
+    name: Option<String>,
+    lastname: Option<String>,
+    date_of_birth: Option<String>,
+    sexual_orientation: Option<String>,
+    location: Option<String>,
+    interests: Vec<String>,
+    languages: Vec<String>,
+    preferable_location: Vec<String>,
+    kept_profile_photos: Vec<String>,
+    new_profile_photos: Vec<Bytes>,
+}
+
+/// POST /updateProfile
+///
+/// Replaces the authenticated user's editable profile. `profile_photos[]`
+/// accepts both retained URL strings and newly uploaded image files.
+async fn update_profile(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    multipart: Multipart,
+) -> Result<Response, AppError> {
+    let token = auth::extract_bearer(&headers)?;
+    let claims = auth::verify_token(&state, &token).await?;
+    let form = parse_update_profile_form(multipart).await?;
+
+    let name = required_non_empty_form_field(form.name, "name")?;
+    let lastname = required_non_empty_form_field(form.lastname, "lastname")?;
+    let date_of_birth =
+        parse_date_of_birth(&required_form_field(form.date_of_birth, "date_of_birth")?)?;
+    let sexual_orientation =
+        required_non_empty_form_field(form.sexual_orientation, "sexualOrientation")?;
+    let city = required_non_empty_form_field(form.location, "location")?;
+    let location = repo::resolve_netherlands_city(&state.db, &city).await?;
+
+    let mut new_photo_urls = Vec::with_capacity(form.new_profile_photos.len());
+    for image in form.new_profile_photos {
+        match store_local_image(&state, image).await {
+            Ok(url) => new_photo_urls.push(url),
+            Err(error) => {
+                remove_local_uploads(&state, &new_photo_urls).await;
+                return Err(error);
+            }
+        }
+    }
+
+    let update = repo::ProfileUpdate {
+        name: &name,
+        lastname: &lastname,
+        date_of_birth,
+        sexual_orientation: &sexual_orientation,
+        location: &location,
+        interests: &form.interests,
+        languages: &form.languages,
+        preferable_location: &form.preferable_location,
+        kept_profile_photos: &form.kept_profile_photos,
+        new_profile_photos: &new_photo_urls,
+    };
+    let (user, previous_photos) =
+        match repo::update_profile_for_identity(&state.db, claims.identity_id(), &update).await {
+            Ok(result) => result,
+            Err(error) => {
+                remove_local_uploads(&state, &new_photo_urls).await;
+                return Err(error);
+            }
+        };
+
+    let payload = UserResponse::from(user);
+    let mut retained_urls: std::collections::HashSet<&str> =
+        payload.profile_photos.iter().map(String::as_str).collect();
+    retained_urls.insert(payload.avatar_url.as_str());
+    let mut removed_urls = std::collections::HashSet::new();
+    for previous in previous_photos {
+        if !retained_urls.contains(previous.as_str()) && removed_urls.insert(previous.clone()) {
+            remove_local_upload(&state, &previous).await;
+        }
+    }
+
+    let mut response = (StatusCode::OK, Json(payload)).into_response();
+    if let Ok(value) = format!("Bearer {token}").parse() {
+        response.headers_mut().insert(header::AUTHORIZATION, value);
+    }
+    Ok(response)
+}
+
+async fn parse_update_profile_form(
+    mut multipart: Multipart,
+) -> Result<UpdateProfileForm, AppError> {
+    let mut form = UpdateProfileForm::default();
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| AppError::BadRequest(format!("invalid multipart body: {e}")))?
+    {
+        let Some(name) = field.name().map(str::to_string) else {
+            continue;
+        };
+
+        if is_array_key(&name, "profile_photos") || is_array_key(&name, "profilePhotos") {
+            let is_file = field.file_name().is_some()
+                || field
+                    .content_type()
+                    .is_some_and(|content_type| content_type.starts_with("image/"));
+            if is_file {
+                let bytes = field.bytes().await.map_err(|e| {
+                    AppError::BadRequest(format!("invalid profile_photos file: {e}"))
+                })?;
+                validate_image_bytes(&bytes, "profile photo")?;
+                form.new_profile_photos.push(bytes);
+            } else {
+                let url = field.text().await.map_err(|e| {
+                    AppError::BadRequest(format!("invalid profile_photos URL: {e}"))
+                })?;
+                push_profile_photo_url(&mut form.kept_profile_photos, &url)?;
+            }
+            continue;
+        }
+
+        let value = field
+            .text()
+            .await
+            .map_err(|e| AppError::BadRequest(format!("invalid {name} field: {e}")))?;
+        apply_update_profile_text_field(&mut form, &name, value)?;
+    }
+
+    deduplicate(&mut form.interests);
+    deduplicate(&mut form.languages);
+    deduplicate(&mut form.preferable_location);
+    if form.kept_profile_photos.len() + form.new_profile_photos.len() > MAX_PROFILE_PHOTOS {
+        return Err(AppError::BadRequest(format!(
+            "profile_photos may contain at most {MAX_PROFILE_PHOTOS} entries"
+        )));
+    }
+
+    Ok(form)
+}
+
+fn apply_update_profile_text_field(
+    form: &mut UpdateProfileForm,
+    name: &str,
+    value: String,
+) -> Result<(), AppError> {
+    match name {
+        "name" => form.name = Some(value),
+        "lastname" => form.lastname = Some(value),
+        "date_of_birth" | "dateOfBirth" => form.date_of_birth = Some(value),
+        "sexualOrientation" | "sexual_orientation" => form.sexual_orientation = Some(value),
+        "location" => form.location = Some(value),
+        key if is_array_key(key, "interests") || is_array_key(key, "hobbies") => {
+            extend_string_values(&mut form.interests, &value)?;
+        }
+        key if is_array_key(key, "languages") => {
+            extend_string_values(&mut form.languages, &value)?;
+        }
+        key if is_array_key(key, "preferableLocation")
+            || is_array_key(key, "preferable_location") =>
+        {
+            extend_string_values(&mut form.preferable_location, &value)?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn push_profile_photo_url(values: &mut Vec<String>, raw: &str) -> Result<(), AppError> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return Ok(());
+    }
+    if raw.len() > 2048 {
+        return Err(AppError::BadRequest(
+            "profile photo URL must be at most 2048 characters".into(),
+        ));
+    }
+    let url = url::Url::parse(raw)
+        .map_err(|_| AppError::BadRequest("invalid profile photo URL".into()))?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(AppError::BadRequest(
+            "profile photo URL must use http or https".into(),
+        ));
+    }
+    values.push(raw.to_string());
+    Ok(())
 }
 
 /// GET /getFilteredData
@@ -521,7 +725,7 @@ async fn update_avatar(
             .bytes()
             .await
             .map_err(|e| AppError::BadRequest(format!("invalid image field: {e}")))?;
-        validate_avatar_bytes(&bytes)?;
+        validate_image_bytes(&bytes, "avatar")?;
         image = Some(bytes);
         break;
     }
@@ -534,16 +738,18 @@ async fn update_avatar(
     Ok(Json(AvatarResponse { avatar_url }))
 }
 
-fn validate_avatar_bytes(image: &[u8]) -> Result<(), AppError> {
+fn validate_image_bytes(image: &[u8], label: &str) -> Result<(), AppError> {
     if image.is_empty() || image.len() > MAX_AVATAR_BYTES {
-        return Err(AppError::BadRequest(
-            "avatar must be between 1 byte and 8 MB".into(),
-        ));
+        return Err(AppError::BadRequest(format!(
+            "{label} must be between 1 byte and 8 MB"
+        )));
     }
     infer::get(image)
         .filter(|kind| is_supported_avatar_mime(kind.mime_type()))
         .ok_or_else(|| {
-            AppError::BadRequest("avatar must be JPEG, PNG, WebP, GIF, HEIC, or HEIF".into())
+            AppError::BadRequest(format!(
+                "{label} must be JPEG, PNG, WebP, GIF, HEIC, or HEIF"
+            ))
         })?;
     Ok(())
 }
@@ -553,7 +759,24 @@ async fn store_avatar_for_identity(
     identity_id: &str,
     image: Bytes,
 ) -> Result<String, AppError> {
-    validate_avatar_bytes(&image)?;
+    let avatar_url = store_local_image(state, image).await?;
+    let previous = match repo::update_avatar_url(&state.db, identity_id, &avatar_url).await {
+        Ok(previous) => previous,
+        Err(error) => {
+            remove_local_upload(state, &avatar_url).await;
+            return Err(error);
+        }
+    };
+
+    if let Some(previous) = previous {
+        remove_local_upload(state, &previous).await;
+    }
+
+    Ok(avatar_url)
+}
+
+async fn store_local_image(state: &AppState, image: Bytes) -> Result<String, AppError> {
+    validate_image_bytes(&image, "image")?;
     let kind = infer::get(&image).expect("validated avatar type must remain detectable");
 
     let id = uuid::Uuid::new_v4();
@@ -571,20 +794,7 @@ async fn store_avatar_for_identity(
         )));
     }
 
-    let avatar_url = state.config.avatar_url(&filename);
-    let previous = match repo::update_avatar_url(&state.db, identity_id, &avatar_url).await {
-        Ok(previous) => previous,
-        Err(error) => {
-            let _ = tokio::fs::remove_file(&final_path).await;
-            return Err(error);
-        }
-    };
-
-    if let Some(previous) = previous {
-        remove_previous_local_avatar(state, &previous).await;
-    }
-
-    Ok(avatar_url)
+    Ok(state.config.avatar_url(&filename))
 }
 
 fn is_supported_avatar_mime(mime: &str) -> bool {
@@ -594,8 +804,15 @@ fn is_supported_avatar_mime(mime: &str) -> bool {
     )
 }
 
-async fn remove_previous_local_avatar(state: &AppState, avatar_url: &str) {
-    let Some((_, filename)) = avatar_url.rsplit_once("/uploads/") else {
+async fn remove_local_uploads(state: &AppState, urls: &[String]) {
+    for url in urls {
+        remove_local_upload(state, url).await;
+    }
+}
+
+async fn remove_local_upload(state: &AppState, upload_url: &str) {
+    let prefix = state.config.avatar_url("");
+    let Some(filename) = upload_url.strip_prefix(&prefix) else {
         return;
     };
     if filename.is_empty()
@@ -891,5 +1108,41 @@ mod tests {
         assert_eq!(form.sexual_orientation.as_deref(), Some("bisexual"));
         assert_eq!(form.interests, ["Acting", "Travel", "Cooking"]);
         assert_eq!(form.preferable_location, ["Amsterdam", "Utrecht"]);
+    }
+
+    #[test]
+    fn maps_update_profile_text_fields_and_arrays() {
+        let mut form = UpdateProfileForm::default();
+        apply_update_profile_text_field(&mut form, "name", "Dimitrii".into()).unwrap();
+        apply_update_profile_text_field(&mut form, "sexualOrientation", "Pansexual".into())
+            .unwrap();
+        apply_update_profile_text_field(&mut form, "interests[]", "Programming".into()).unwrap();
+        apply_update_profile_text_field(&mut form, "languages[]", "English".into()).unwrap();
+        apply_update_profile_text_field(&mut form, "preferableLocation[]", "Amsterdam".into())
+            .unwrap();
+
+        assert_eq!(form.name.as_deref(), Some("Dimitrii"));
+        assert_eq!(form.sexual_orientation.as_deref(), Some("Pansexual"));
+        assert_eq!(form.interests, ["Programming"]);
+        assert_eq!(form.languages, ["English"]);
+        assert_eq!(form.preferable_location, ["Amsterdam"]);
+    }
+
+    #[test]
+    fn validates_kept_profile_photo_urls() {
+        let mut urls = Vec::new();
+        push_profile_photo_url(&mut urls, " https://example.com/photo.jpg ").unwrap();
+        assert_eq!(urls, ["https://example.com/photo.jpg"]);
+        assert!(push_profile_photo_url(&mut urls, "file:///tmp/photo.jpg").is_err());
+        assert!(push_profile_photo_url(&mut urls, "not-a-url").is_err());
+    }
+
+    #[test]
+    fn parses_update_profile_birth_date_formats() {
+        assert_eq!(
+            parse_date_of_birth("2004/02/09").unwrap(),
+            NaiveDate::from_ymd_opt(2004, 2, 9).unwrap()
+        );
+        assert!(parse_date_of_birth("09-02-2004").is_err());
     }
 }
