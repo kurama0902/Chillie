@@ -18,6 +18,7 @@ import MultiSelect from "./MultiSelect";
 import { languageOptions } from "@/constants/languages";
 import { interestOptions } from "@/constants/interests";
 import { cityOptions } from "@/constants/cities";
+import { sexualOrientationOptions } from "@/constants/sexualOrientations";
 import { AppTheme } from "@/types/types";
 import { getStyles } from "./styles";
 
@@ -32,6 +33,7 @@ export default function Question({
     | "name"
     | "lastname"
     | "date of birth"
+    | "sexual orientation"
     | "interests"
     | "languages"
     | "location"
@@ -90,12 +92,14 @@ export default function Question({
   const dropdownData = useMemo(() => {
     if (placeholder === "languages") return languageOptions;
     if (placeholder === "interests") return interestOptions;
+    if (placeholder === "sexual orientation") return sexualOrientationOptions;
     return cityOptions;
   }, [placeholder]);
 
   const isDropdown =
     placeholder === "languages" ||
     placeholder === "interests" ||
+    placeholder === "sexual orientation" ||
     placeholder === "location" ||
     placeholder === "preferable location";
 
@@ -164,12 +168,18 @@ export default function Question({
               ? "Select languages"
               : placeholder === "interests"
                 ? "Select interests"
+                : placeholder === "sexual orientation"
+                  ? "Select sexual orientation"
                 : placeholder === "location"
                   ? "Select your location"
                   : "Select preferable location"
           }
           searchPlaceholder="Search..."
-          maxSelect={placeholder === "location" ? 1 : 7}
+          maxSelect={
+            placeholder === "location" || placeholder === "sexual orientation"
+              ? 1
+              : 7
+          }
           onChange={(items) => update(items)}
         />
       ) : (

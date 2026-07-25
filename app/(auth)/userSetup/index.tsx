@@ -3,8 +3,6 @@ import Slider from "@/components/Slider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -19,17 +17,26 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
+import { useRouter } from "expo-router";
+import { useAuth0 } from "react-native-auth0";
+import AvatarEditor from "@/components/AvatarEditor";
 import { AppTheme } from "@/types/types";
 import Question from "@/components/Question";
 import useGradualAnimation from "@/hooks/useGradualAnimation";
-import { useAppSelector } from "@/store/hooks";
-import { baseApi } from "@/store/api";
+import { useAppDispatch } from "@/store/hooks";
+import {
+  baseApi,
+  useBasicUserSetupMutation,
+  useLoginQuery,
+  useLoginQueryState,
+} from "@/store/api";
 import WarningModal from "@/components/WarningModal";
 
 type Questions = {
   name: string;
   lastname: string;
   "date of birth": string;
+  "sexual orientation": string[];
   interests: string[];
   languages: string[];
   location: string[];
@@ -41,6 +48,7 @@ export default function UserSetup() {
     name: "",
     lastname: "",
     "date of birth": "",
+    "sexual orientation": [],
     interests: [],
     languages: [],
     location: [],
@@ -67,10 +75,21 @@ export default function UserSetup() {
 
   const theme = useTheme<AppTheme>();
   const styles = getStyles(theme);
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { user: authUser } = useAuth0();
 
-  const email = useAppSelector((state) => state.user?.email);
+  const email = authUser?.email ?? "";
+  const loginArgs = { email };
+  const { data: loginUser } = useLoginQueryState(
+    loginArgs,
+    { skip: !email },
+  );
+  useLoginQuery(loginArgs, {
+    skip: !email || loginUser === undefined,
+  });
   const [basicUserSetup, { isLoading: isSubmitting }] =
-    baseApi.useBasicUserSetupMutation();
+    useBasicUserSetupMutation();
 
   const [warning, setWarning] = useState<{
     message: string;
@@ -94,9 +113,30 @@ export default function UserSetup() {
     [],
   );
 
+  const [avatarImage, setAvatarImage] = useState<{
+    uri: string;
+    type: string;
+    name: string;
+  } | null>(null);
+
+  const handleAvatarSelected = useCallback(
+    (image: { uri: string; type: string; name: string }) => {
+      setAvatarImage(image);
+      if (!email) return;
+      dispatch(
+        baseApi.util.updateQueryData("login", { email }, (cachedUser) => ({
+          ...(cachedUser ?? {}),
+          avatar_url: image.uri,
+        })),
+      );
+    },
+    [dispatch, email],
+  );
+
   const contentList = useMemo(
     () => [
       <View
+        key="welcome"
         style={{
           flex: 1,
           justifyContent: "space-around",
@@ -108,6 +148,16 @@ export default function UserSetup() {
         <Text style={{ textAlign: "center" }} variant="headlineSmall">
           Answer to the following questions
         </Text>
+      </View>,
+      <View key="avatar" style={styles.avatarSlide}>
+        <Text style={styles.questionText} variant="headlineLarge">
+          Add your avatar
+        </Text>
+        <AvatarEditor
+          avatarUrl={loginUser?.avatar_url}
+          size={190}
+          onSelected={handleAvatarSelected}
+        />
       </View>,
       <Question
         key="name"
@@ -129,6 +179,13 @@ export default function UserSetup() {
         placeholder="date of birth"
         question="What is your date of birth?"
         initialValue=""
+      />,
+      <Question
+        key="sexual orientation"
+        handleStoreAnswers={handleStoreAnswers}
+        placeholder="sexual orientation"
+        question="What is your sexual orientation?"
+        initialValue={[]}
       />,
       <Question
         key="interests"
@@ -159,7 +216,13 @@ export default function UserSetup() {
         initialValue={[]}
       />,
     ],
-    [handleStoreAnswers],
+    [
+      handleAvatarSelected,
+      handleStoreAnswers,
+      loginUser?.avatar_url,
+      styles.avatarSlide,
+      styles.questionText,
+    ],
   );
 
   const sliderElement = useMemo(
@@ -188,11 +251,16 @@ export default function UserSetup() {
 
   const slideValidation: ({ key: keyof Questions; message: string } | null)[] = [
     null,
+    null,
     { key: "name", message: "Please enter your name before continuing." },
     { key: "lastname", message: "Please enter your lastname before continuing." },
     {
       key: "date of birth",
       message: "Please select your date of birth before continuing.",
+    },
+    {
+      key: "sexual orientation",
+      message: "Please select your sexual orientation before continuing.",
     },
     {
       key: "interests",
@@ -226,7 +294,6 @@ export default function UserSetup() {
     if (warning && !getEmptyWarning(slideIndex)) {
       hideWarning();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questionState, slideIndex, warning]);
 
   const animateToSlide = (direction: "next" | "prev") => {
@@ -274,20 +341,66 @@ export default function UserSetup() {
     hideWarning();
 
     try {
-      await basicUserSetup({
-        name: questionState.name,
-        lastname: questionState.lastname,
-        email: email ?? "",
-        date_of_birth: questionState["date of birth"],
-        interests: questionState.interests,
-        languages: questionState.languages,
-        location: questionState.location[0] ?? "",
-        preferableLocation: questionState["preferable location"],
-      }).unwrap();
+      const formData = new FormData();
+      formData.append("name", questionState.name);
+      formData.append("lastname", questionState.lastname);
+      formData.append("email", email);
+      formData.append("date_of_birth", questionState["date of birth"]);
+      formData.append("location", questionState.location[0] ?? "");
+
+      formData.append(
+        "sexualOrientation",
+        questionState["sexual orientation"][0] ?? "",
+      );
+      questionState.interests.forEach((v) =>
+        formData.append("interests[]", v),
+      );
+      questionState.languages.forEach((v) =>
+        formData.append("languages[]", v),
+      );
+      questionState["preferable location"].forEach((v) =>
+        formData.append("preferableLocation[]", v),
+      );
+
+      if (avatarImage) {
+        formData.append("avatar_image", avatarImage as any);
+      }
+
+      const setupUser = await basicUserSetup(formData).unwrap();
+      if (email) {
+        dispatch(
+          baseApi.util.updateQueryData("login", { email }, (cachedUser) => ({
+            ...(cachedUser ?? {}),
+            ...(setupUser ?? {}),
+            name: setupUser?.name ?? questionState.name,
+            lastname: setupUser?.lastname ?? questionState.lastname,
+            email,
+            date_of_birth:
+              setupUser?.date_of_birth ?? questionState["date of birth"],
+            sexualOrientation:
+              setupUser?.sexualOrientation ??
+              questionState["sexual orientation"],
+            interests: setupUser?.interests ?? questionState.interests,
+            languages: setupUser?.languages ?? questionState.languages,
+            preferableLocation:
+              setupUser?.preferableLocation ??
+              questionState["preferable location"],
+            avatar_url:
+              setupUser?.avatar_url ??
+              avatarImage?.uri ??
+              cachedUser?.avatar_url,
+            isNew: false,
+          })),
+        );
+      }
+      router.replace("/main");
     } catch (e) {
       console.error("basicUserSetup error:", e);
     }
   };
+
+  const isDropdownSlide = slideIndex >= 5;
+  const sliderHeight = slideIndex === 1 ? 330 : isDropdownSlide ? 400 : 200;
 
   return (
     <>
@@ -298,13 +411,7 @@ export default function UserSetup() {
             sliderAnimatedStyle,
             [
               {
-                height:
-                  slideIndex === 4 ||
-                  slideIndex === 5 ||
-                  slideIndex === 6 ||
-                  slideIndex === 7
-                    ? 400
-                    : 200,
+                height: sliderHeight,
               },
             ],
           ]}
@@ -341,12 +448,7 @@ export default function UserSetup() {
         </View>
         <Animated.View
           style={
-            slideIndex !== 4 &&
-            slideIndex !== 5 &&
-            slideIndex !== 6 &&
-            slideIndex !== 7
-              ? fakeView
-              : { height: 0 }
+            slideIndex !== 1 && !isDropdownSlide ? fakeView : { height: 0 }
           }
         />
       </View>
@@ -376,6 +478,12 @@ const getStyles = (theme: AppTheme) => {
     },
     questionText: {
       textAlign: "center",
+    },
+    avatarSlide: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 18,
     },
     input: {
       height: 50,

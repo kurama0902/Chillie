@@ -59,6 +59,9 @@ export const getStyles = (theme: AppTheme) =>
       paddingHorizontal: 12,
       backgroundColor: theme.colors.dropdownBackgroundColor,
     },
+    dropdownPressed: {
+      opacity: 0.82,
+    },
     dropdownPlaceholder: {
       flex: 1,
       marginRight: 8,
@@ -66,80 +69,167 @@ export const getStyles = (theme: AppTheme) =>
       color: theme.colors.onSurfaceVariant,
       fontFamily: dropdownFontFamily,
     },
+    dropdownCount: {
+      minWidth: 26,
+      height: 26,
+      paddingHorizontal: 7,
+      marginRight: 6,
+      borderRadius: 13,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.primary,
+    },
+    dropdownCountText: {
+      color: theme.colors.onPrimary,
+      fontSize: 13,
+      lineHeight: 16,
+      fontFamily: dropdownFontFamily,
+    },
 
-    dropdownListContainer: {
-      position: "absolute",
-      left: 20,
-      right: 20,
-      elevation: 8,
-      borderWidth: 1,
-      borderColor: theme.colors.outline,
-      borderRadius: 12,
-      padding: 8,
+    drawerBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(0, 0, 0, 0.48)",
+      zIndex: 3000,
+    },
+    drawerBackdropPressable: {
+      flex: 1,
+    },
+    drawerLayer: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: "flex-end",
+      zIndex: 3001,
+    },
+    drawerAnimationShell: {
+      width: "100%",
+    },
+    drawer: {
+      flex: 1,
+      width: "100%",
+      paddingHorizontal: 20,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.outline,
       backgroundColor: theme.colors.dropdownBackgroundColor,
+      elevation: 18,
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      zIndex: 1000,
+      shadowOffset: { width: 0, height: -5 },
+      shadowOpacity: 0.22,
+      shadowRadius: 14,
     },
-
-    dropdownModalStyle: {
-      padding: 20
+    drawerDragArea: {
+      marginHorizontal: -20,
+      paddingTop: 10,
+      paddingHorizontal: 20,
     },
-
-    dropdownSearchRow: {
+    drawerHandle: {
+      alignSelf: "center",
+      width: 46,
+      height: 5,
+      marginBottom: 8,
+      borderRadius: 3,
+      backgroundColor: theme.colors.onSurfaceVariant,
+      opacity: 0.38,
+    },
+    drawerHeader: {
+      minHeight: 54,
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      paddingHorizontal: 4,
-      paddingBottom: 8,
-      marginBottom: 4,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.outline,
+      justifyContent: "space-between",
     },
-    dropdownSearch: {
+    drawerHeaderCopy: {
       flex: 1,
-      height: 40,
+      paddingRight: 8,
+    },
+    drawerTitle: {
+      color: theme.colors.onSurface,
+    },
+    drawerSelectionCount: {
+      marginTop: 2,
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 13,
+      fontFamily: dropdownFontFamily,
+    },
+
+    drawerSearchRow: {
+      height: 50,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginTop: 10,
+      paddingHorizontal: 14,
+      borderWidth: 1,
+      borderColor: theme.colors.outline,
+      borderRadius: 14,
+      backgroundColor: theme.colors.background,
+    },
+    drawerSearch: {
+      flex: 1,
+      height: 48,
       padding: 0,
       fontSize: 16,
       color: theme.colors.onSurface,
       fontFamily: dropdownFontFamily,
     },
 
-    dropdownList: {
-      minHeight: 50,
-      maxHeight: 150,
-    },
-    dropdownListContent: {
-      gap: 6,
-      paddingVertical: 2,
-    },
-    dropdownItem: {
-      flexDirection: "row-reverse",
-      justifyContent: "space-between",
-      alignItems: "center",
-      paddingVertical: 5,
-      paddingHorizontal: 12,
-      borderRadius: 8,
-    },
-
-    dropdownItemSelected: {
-      backgroundColor: theme.colors.background,
-    },
-    dropdownItemDisabled: {
-      opacity: 0.4,
-    },
-    dropdownItemText: {
+    drawerList: {
       flex: 1,
-      marginRight: 8,
+      marginTop: 12,
+    },
+    drawerListContent: {
+      flexGrow: 1,
+      gap: 8,
+      paddingBottom: 12,
+    },
+    drawerItem: {
+      minHeight: 52,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: "transparent",
+      borderRadius: 14,
+    },
+    drawerItemSelected: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.dark
+        ? "rgba(233, 64, 87, 0.18)"
+        : theme.colors.secondary,
+    },
+    drawerItemDisabled: {
+      opacity: 0.38,
+    },
+    drawerItemPressed: {
+      backgroundColor: theme.colors.surfaceVariant,
+    },
+    drawerItemText: {
+      flex: 1,
+      marginRight: 12,
       fontSize: 16,
       color: theme.colors.onSurface,
       fontFamily: dropdownFontFamily,
     },
+    drawerItemTextSelected: {
+      color: theme.colors.primary,
+    },
+    drawerDoneButton: {
+      marginTop: 4,
+      borderRadius: 14,
+    },
+    drawerDoneLabel: {
+      fontSize: 17,
+      lineHeight: 24,
+    },
+
     dropdownEmpty: {
-      padding: 16,
+      flex: 1,
+      minHeight: 140,
       alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      padding: 16,
     },
     dropdownEmptyText: {
       color: theme.colors.onSurfaceVariant,

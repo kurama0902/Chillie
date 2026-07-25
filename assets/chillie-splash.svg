@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+  viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="title desc">
+  <title id="title">Burgundy Mosaic</title>
+  <desc id="desc">Animated 2D red hot pepper revealed by 39 square mosaic tiles in deterministic random order. After the pepper completes, the cursive word Chillie is written stroke by stroke.</desc>
+  <metadata>Variant 08; seed 8443; 9 by 9 checkerboard mosaic; transparent background. Handwritten Chillie from 1.000s to 1.500s.</metadata>
+  <defs>
+
+    <linearGradient id="pepperFill" x1="0.12" y1="0.12" x2="0.86" y2="0.9">
+      <stop offset="0" stop-color="#f14b5a"/>
+      <stop offset="0.45" stop-color="#a80727"/>
+      <stop offset="1" stop-color="#43001a"/>
+    </linearGradient>
+    <linearGradient id="pepperShade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="0.56" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#3a0010" stop-opacity="0.58"/>
+    </linearGradient>
+    <linearGradient id="stemFill" x1="0.15" y1="0.85" x2="0.86" y2="0.06">
+      <stop offset="0" stop-color="#103f16"/>
+      <stop offset="0.52" stop-color="#2e701f"/>
+      <stop offset="1" stop-color="#91c53c"/>
+    </linearGradient>
+    <radialGradient id="pepperGlow" cx="0.34" cy="0.28" r="0.62">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.85"/>
+      <stop offset="0.22" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <g id="pepper-art" transform="rotate(-1.8 256 280)">
+      <path d="M228 151 C194 165 184 199 181 236 C177 286 157 335 127 375 C103 408 78 432 55 454 C42 466 46 480 63 477 C115 468 174 437 217 392 C261 346 293 282 295 222 C296 180 276 150 247 146 C240 145 234 147 228 151 Z"
+        fill="url(#pepperFill)" stroke="#43001a" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M262 154 C287 169 298 195 295 229 C290 289 259 351 215 396 C175 437 119 466 65 477 C112 447 151 413 179 374 C218 320 239 264 240 207 C240 180 234 163 225 153 C237 146 251 147 262 154 Z"
+        fill="url(#pepperShade)" opacity="0.78"/>
+      <path d="M209 177 C194 204 197 242 189 276 C181 309 168 338 151 364"
+        fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="13" stroke-linecap="round"/>
+      <path d="M207 182 C196 205 199 230 195 253"
+        fill="none" stroke="#ffffff" stroke-opacity="0.82" stroke-width="5" stroke-linecap="round"/>
+      <ellipse cx="209" cy="218" rx="41" ry="62" fill="url(#pepperGlow)" opacity="0.7"/>
+      <g fill="#ffd5cd" opacity="0.48">
+        <circle cx="202" cy="274" r="2.8"/><circle cx="184" cy="311" r="2.1"/>
+        <circle cx="224" cy="252" r="1.8"/><circle cx="166" cy="347" r="2.4"/>
+        <circle cx="145" cy="381" r="1.7"/><circle cx="239" cy="193" r="2.2"/>
+        <circle cx="115" cy="418" r="1.9"/><circle cx="266" cy="232" r="1.5"/>
+      </g>
+      <path d="M210 157 C210 140 219 126 236 121 C254 122 270 132 278 149 C264 145 254 149 246 158 C235 150 223 149 210 157 Z"
+        fill="url(#stemFill)" stroke="#103f16" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M221 148 L230 122 L239 149 M244 148 L241 122 L260 149"
+        fill="none" stroke="#91c53c" stroke-opacity="0.52" stroke-width="3" stroke-linecap="round"/>
+      <path d="M236 124 C247 83 286 53 333 48 C364 45 386 55 390 73 C391 81 387 88 380 91 C381 76 372 68 353 68 C308 68 272 91 257 131 Z"
+        fill="url(#stemFill)" stroke="#103f16" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M249 120 C267 84 303 61 344 57 C363 55 377 61 382 71"
+        fill="none" stroke="#91c53c" stroke-opacity="0.66" stroke-width="4" stroke-linecap="round"/>
+    </g>
+
+    <clipPath id="tile-6-2" clipPathUnits="userSpaceOnUse"><rect x="113.78" y="341.33" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-7-1" clipPathUnits="userSpaceOnUse"><rect x="56.89" y="398.22" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-6-3" clipPathUnits="userSpaceOnUse"><rect x="170.67" y="341.33" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-1-5" clipPathUnits="userSpaceOnUse"><rect x="284.44" y="56.89" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-7-3" clipPathUnits="userSpaceOnUse"><rect x="170.67" y="398.22" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-6-4" clipPathUnits="userSpaceOnUse"><rect x="227.56" y="341.33" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-0-6" clipPathUnits="userSpaceOnUse"><rect x="341.33" y="0.00" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-8-3" clipPathUnits="userSpaceOnUse"><rect x="170.67" y="455.11" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-1-7" clipPathUnits="userSpaceOnUse"><rect x="398.22" y="56.89" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-6-5" clipPathUnits="userSpaceOnUse"><rect x="284.44" y="341.33" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-5-4" clipPathUnits="userSpaceOnUse"><rect x="227.56" y="284.44" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-1-4" clipPathUnits="userSpaceOnUse"><rect x="227.56" y="56.89" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-8-0" clipPathUnits="userSpaceOnUse"><rect x="0.00" y="455.11" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-8-2" clipPathUnits="userSpaceOnUse"><rect x="113.78" y="455.11" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-7-2" clipPathUnits="userSpaceOnUse"><rect x="113.78" y="398.22" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-2-4" clipPathUnits="userSpaceOnUse"><rect x="227.56" y="113.78" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-3-2" clipPathUnits="userSpaceOnUse"><rect x="113.78" y="170.67" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-3-5" clipPathUnits="userSpaceOnUse"><rect x="284.44" y="170.67" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-7-4" clipPathUnits="userSpaceOnUse"><rect x="227.56" y="398.22" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-0-5" clipPathUnits="userSpaceOnUse"><rect x="284.44" y="0.00" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-4-2" clipPathUnits="userSpaceOnUse"><rect x="113.78" y="227.56" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-1-3" clipPathUnits="userSpaceOnUse"><rect x="170.67" y="56.89" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-4-4" clipPathUnits="userSpaceOnUse"><rect x="227.56" y="227.56" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-0-4" clipPathUnits="userSpaceOnUse"><rect x="227.56" y="0.00" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-7-0" clipPathUnits="userSpaceOnUse"><rect x="0.00" y="398.22" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-2-5" clipPathUnits="userSpaceOnUse"><rect x="284.44" y="113.78" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-4-5" clipPathUnits="userSpaceOnUse"><rect x="284.44" y="227.56" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-3-4" clipPathUnits="userSpaceOnUse"><rect x="227.56" y="170.67" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-8-1" clipPathUnits="userSpaceOnUse"><rect x="56.89" y="455.11" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-0-7" clipPathUnits="userSpaceOnUse"><rect x="398.22" y="0.00" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-4-3" clipPathUnits="userSpaceOnUse"><rect x="170.67" y="227.56" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-5-3" clipPathUnits="userSpaceOnUse"><rect x="170.67" y="284.44" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-5-2" clipPathUnits="userSpaceOnUse"><rect x="113.78" y="284.44" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-1-6" clipPathUnits="userSpaceOnUse"><rect x="341.33" y="56.89" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-2-3" clipPathUnits="userSpaceOnUse"><rect x="170.67" y="113.78" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-5-5" clipPathUnits="userSpaceOnUse"><rect x="284.44" y="284.44" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-5-1" clipPathUnits="userSpaceOnUse"><rect x="56.89" y="284.44" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-3-3" clipPathUnits="userSpaceOnUse"><rect x="170.67" y="170.67" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+    <clipPath id="tile-6-1" clipPathUnits="userSpaceOnUse"><rect x="56.89" y="341.33" width="56.89" height="56.89" shape-rendering="crispEdges"/></clipPath>
+  </defs>
+  <g id="mosaic-tiles" aria-hidden="true">
+    <g clip-path="url(#tile-6-2)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.000s" dur="0.220s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-7-1)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.021s" dur="0.155s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-6-3)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.042s" dur="0.148s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-1-5)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.063s" dur="0.182s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-7-3)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.084s" dur="0.164s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-6-4)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.105s" dur="0.210s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-0-6)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.126s" dur="0.168s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-8-3)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.147s" dur="0.200s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-1-7)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.168s" dur="0.183s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-6-5)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.189s" dur="0.231s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-5-4)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.211s" dur="0.238s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-1-4)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.232s" dur="0.249s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-8-0)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.253s" dur="0.250s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-8-2)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.274s" dur="0.157s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-7-2)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.295s" dur="0.203s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-2-4)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.316s" dur="0.216s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-3-2)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.337s" dur="0.219s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-3-5)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.358s" dur="0.206s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-7-4)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.379s" dur="0.241s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-0-5)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.400s" dur="0.237s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-4-2)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.421s" dur="0.247s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-1-3)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.442s" dur="0.215s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-4-4)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.463s" dur="0.185s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-0-4)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.484s" dur="0.260s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-7-0)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.505s" dur="0.159s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-2-5)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.526s" dur="0.202s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-4-5)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.547s" dur="0.191s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-3-4)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.568s" dur="0.205s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-8-1)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.589s" dur="0.192s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-0-7)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.611s" dur="0.197s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-4-3)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.632s" dur="0.214s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-5-3)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.653s" dur="0.215s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-5-2)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.674s" dur="0.208s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-1-6)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.695s" dur="0.181s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-2-3)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.716s" dur="0.171s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-5-5)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.737s" dur="0.211s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-5-1)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.758s" dur="0.233s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-3-3)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.779s" dur="0.178s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <g clip-path="url(#tile-6-1)" opacity="0">
+      <use href="#pepper-art" xlink:href="#pepper-art"/>
+      <animate attributeName="opacity" from="0" to="1" begin="0.800s" dur="0.200s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.2 0.8 0.2 1"/>
+    </g>
+    <set attributeName="opacity" to="0" begin="1.000s" fill="freeze"/>
+  </g>
+  <g id="complete-pepper" opacity="0" aria-hidden="true">
+    <use href="#pepper-art" xlink:href="#pepper-art"/>
+    <set attributeName="opacity" to="1" begin="1.000s" fill="freeze"/>
+  </g>
+  <g id="chillie-signature" role="img" aria-label="Chillie"
+    transform="rotate(-3 340 440)" fill="none" stroke="#a80727" stroke-width="6.5"
+    stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1" stroke-dashoffset="1">
+    <title>Chillie</title>
+    <path id="chillie-stroke-1" d="M264 414 C253 399 227 401 215 417 C203 434 211 451 228 451 C241 451 251 444 257 436" pathLength="1" visibility="hidden">
+      <set attributeName="visibility" to="visible" begin="1.0000s" fill="freeze"/>
+      <animate attributeName="stroke-dashoffset" from="1" to="0" begin="1.0000s" dur="0.0705s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.3 0 0.2 1"/>
+    </path>
+    <path id="chillie-stroke-2" d="M251 447 C260 428 265 410 263 401 C262 394 257 397 257 405 C257 421 253 441 252 450 C257 434 266 424 273 427 C280 431 272 443 277 449 C280 451 284 449 287 445" pathLength="1" visibility="hidden">
+      <set attributeName="visibility" to="visible" begin="1.0749s" fill="freeze"/>
+      <animate attributeName="stroke-dashoffset" from="1" to="0" begin="1.0749s" dur="0.0749s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.3 0 0.2 1"/>
+    </path>
+    <path id="chillie-stroke-3" d="M284 435 C283 443 283 449 287 450 C291 451 295 447 298 443" pathLength="1" visibility="hidden">
+      <set attributeName="visibility" to="visible" begin="1.1542s" fill="freeze"/>
+      <animate attributeName="stroke-dashoffset" from="1" to="0" begin="1.1542s" dur="0.0374s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.3 0 0.2 1"/>
+    </path>
+    <path id="chillie-stroke-4" d="M287 424 L287.2 424.2" pathLength="1" visibility="hidden">
+      <set attributeName="visibility" to="visible" begin="1.1938s" fill="freeze"/>
+      <animate attributeName="stroke-dashoffset" from="1" to="0" begin="1.1938s" dur="0.0176s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.3 0 0.2 1"/>
+    </path>
+    <path id="chillie-stroke-5" d="M299 444 C306 432 312 416 311 403 C311 397 307 396 305 402 C301 414 303 438 307 448 C310 451 316 448 320 443" pathLength="1" visibility="hidden">
+      <set attributeName="visibility" to="visible" begin="1.2159s" fill="freeze"/>
+      <animate attributeName="stroke-dashoffset" from="1" to="0" begin="1.2159s" dur="0.0507s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.3 0 0.2 1"/>
+    </path>
+    <path id="chillie-stroke-6" d="M320 444 C327 432 333 415 332 402 C331 396 327 397 325 403 C321 416 323 439 327 448 C331 451 337 447 341 442" pathLength="1" visibility="hidden">
+      <set attributeName="visibility" to="visible" begin="1.2687s" fill="freeze"/>
+      <animate attributeName="stroke-dashoffset" from="1" to="0" begin="1.2687s" dur="0.0507s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.3 0 0.2 1"/>
+    </path>
+    <path id="chillie-stroke-7" d="M341 435 C340 443 340 449 344 450 C348 451 352 447 356 443" pathLength="1" visibility="hidden">
+      <set attributeName="visibility" to="visible" begin="1.3216s" fill="freeze"/>
+      <animate attributeName="stroke-dashoffset" from="1" to="0" begin="1.3216s" dur="0.0374s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.3 0 0.2 1"/>
+    </path>
+    <path id="chillie-stroke-8" d="M344 424 L344.2 424.2" pathLength="1" visibility="hidden">
+      <set attributeName="visibility" to="visible" begin="1.3612s" fill="freeze"/>
+      <animate attributeName="stroke-dashoffset" from="1" to="0" begin="1.3612s" dur="0.0176s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.3 0 0.2 1"/>
+    </path>
+    <path id="chillie-stroke-9" d="M356 441 C365 441 373 437 372 432 C371 428 364 429 360 434 C354 441 358 450 366 451 C374 452 382 447 386 442" pathLength="1" visibility="hidden">
+      <set attributeName="visibility" to="visible" begin="1.3833s" fill="freeze"/>
+      <animate attributeName="stroke-dashoffset" from="1" to="0" begin="1.3833s" dur="0.0595s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.3 0 0.2 1"/>
+    </path>
+    <path id="chillie-stroke-10" d="M386 449 C410 463 442 465 474 445" pathLength="1" visibility="hidden">
+      <set attributeName="visibility" to="visible" begin="1.4449s" fill="freeze"/>
+      <animate attributeName="stroke-dashoffset" from="1" to="0" begin="1.4449s" dur="0.0551s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.3 0 0.2 1"/>
+    </path>
+  </g>
+</svg>

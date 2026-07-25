@@ -1,15 +1,14 @@
+import { useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import Slider from "@/components/Slider";
 import { Button, Text, useTheme } from "react-native-paper";
 import { Image } from "expo-image";
 import { useAuth0 } from "react-native-auth0";
+import { jwtDecode } from "jwt-decode";
 import { auth0 } from "@/lib/auth0";
-import { useAppDispatch } from "@/store/hooks";
-import { updateUser } from "@/store/userSlice";
-import useLogin from "@/hooks/useLogin";
-import { Redirect } from "expo-router";
+import { useRouter } from "expo-router";
+import { useLazyLoginQuery } from "@/store/api";
 import { createStyles } from "./styles";
-
 
 const Auth = () => {
   const theme = useTheme();
@@ -17,25 +16,36 @@ const Auth = () => {
 
   const { authorize } = useAuth0();
 
-  const dispatch = useAppDispatch();
+  const router = useRouter();
 
   const styles = createStyles(theme);
-
-  useLogin();
+  const [login, { isFetching: isLoggingIn }] = useLazyLoginQuery();
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
 
   async function handleAuth() {
+    if (isAuthorizing || isLoggingIn) return;
+    setIsAuthorizing(true);
     try {
       const result = await authorize({
         audience: "https://chillie.top",
         scope: "openid profile email offline_access",
       });
-      const { accessToken } = result;
 
       await auth0.credentialsManager.saveCredentials(result);
 
-      dispatch(updateUser({ accessToken }));
+      const { email } = jwtDecode<{ email?: string }>(result.idToken);
+      if (!email) throw new Error("Auth0 did not return an email.");
+
+      const userData = await login({ email }).unwrap();
+      if (userData?.isNew) {
+        router.push("/(auth)/userSetup");
+      } else {
+        router.replace("/main");
+      }
     } catch (e) {
       console.error("Login error:", e);
+    } finally {
+      setIsAuthorizing(false);
     }
   }
 
@@ -68,7 +78,7 @@ const Auth = () => {
 
   const contentList = imagesList.map((item) => {
     return (
-      <View style={styles.slide}>
+      <View key={item.url} style={styles.slide}>
         <View style={styles.imageWrap}>
           <Image
             contentFit="cover"
@@ -113,6 +123,8 @@ const Auth = () => {
       <View style={styles.btnWrap}>
         <Button
           onPress={handleAuth}
+          loading={isAuthorizing || isLoggingIn}
+          disabled={isAuthorizing || isLoggingIn}
           labelStyle={styles.btnTextStyle}
           style={styles.btnStyle}
           mode="contained"
@@ -120,6 +132,7 @@ const Auth = () => {
           Log in
         </Button>
         <Button
+          onPress={() => router.push("/(auth)/signUp")}
           labelStyle={styles.btnTextStyle}
           style={styles.btnStyle}
           mode="contained"

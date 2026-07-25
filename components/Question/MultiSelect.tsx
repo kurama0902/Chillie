@@ -1,12 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, Modal, Pressable, TextInput, View } from "react-native";
-import { FlatList } from "react-native-gesture-handler";
-import { Button, Portal, Text, useTheme } from "react-native-paper";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  BackHandler,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { Button, IconButton, Portal, Text, useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, {
+  Easing,
   FadeIn,
   FadeOut,
   LinearTransition,
+  runOnJS,
+  SlideInDown,
+  SlideOutDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import { AppTheme } from "@/types/types";
 import { getStyles } from "./styles";
@@ -22,6 +39,10 @@ type Props = {
   onChange: (next: string[]) => void;
 };
 
+const OPTION_LAYOUT = LinearTransition.duration(240).easing(
+  Easing.inOut(Easing.cubic),
+);
+
 export default function MultiSelect({
   data,
   value,
@@ -31,79 +52,146 @@ export default function MultiSelect({
   onChange,
 }: Props) {
   const theme = useTheme<AppTheme>();
-  const styles = getStyles(theme);
+  const styles = useMemo(() => getStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const dragY = useSharedValue(0);
 
-  const triggerRef = useRef<View | null>(null);
-
-  const [triggerHeight, setTriggerHeight] = useState<number>(0);
-  const [listHeight, setListHeight] = useState<number>(0);
-  const [isKeyboardShow, setIsKeyboardShow] = useState<boolean>(false);
-
-  const handleTriggerHeight = () => {
-    triggerRef.current?.measure((x, y, width, height, pageX, pageY) => {
-      if (Math.round(pageX) === 20) {
-        if (!isKeyboardShow) {
-          setTriggerHeight(pageY + height + 6);
-        } else {
-          setTriggerHeight(pageY - listHeight - 6);
-        }
-      }
-    });
+  const openDrawer = () => {
+    dragY.value = 0;
+    setQuery("");
+    setOpen(true);
   };
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return data;
-    return data.filter((option) => option.label.toLowerCase().includes(q));
-  }, [data, query]);
+  const closeDrawer = useCallback(() => {
+    Keyboard.dismiss();
+    setOpen(false);
+  }, []);
 
-  const toggle = (val: string) => {
-    if (value.includes(val)) {
-      onChange(value.filter((selected) => selected !== val));
-    } else if (value.length < maxSelect) {
-      onChange([...value, val]);
+  useEffect(() => {
+    if (!open) return;
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        closeDrawer();
+        return true;
+      },
+    );
+
+    return () => subscription.remove();
+  }, [closeDrawer, open]);
+
+  const options = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const selectedOrder = new Map(
+      value.map((selectedValue, index) => [selectedValue, index]),
+    );
+    const sourceOrder = new Map(
+      data.map((option, index) => [option.value, index]),
+    );
+
+    return data
+      .filter(
+        (option) =>
+          !normalizedQuery ||
+          option.label.toLowerCase().includes(normalizedQuery),
+      )
+      .slice()
+      .sort((a, b) => {
+        const aSelectedIndex = selectedOrder.get(a.value);
+        const bSelectedIndex = selectedOrder.get(b.value);
+        const aSelected = aSelectedIndex !== undefined;
+        const bSelected = bSelectedIndex !== undefined;
+
+        if (aSelected && bSelected) {
+          return aSelectedIndex - bSelectedIndex;
+        }
+        if (aSelected) return -1;
+        if (bSelected) return 1;
+        return (sourceOrder.get(a.value) ?? 0) - (sourceOrder.get(b.value) ?? 0);
+      });
+  }, [data, query, value]);
+
+  const toggle = (optionValue: string) => {
+    if (value.includes(optionValue)) {
+      onChange(value.filter((selected) => selected !== optionValue));
+      return;
+    }
+
+    if (value.length < maxSelect) {
+      onChange([...value, optionValue]);
     }
   };
 
-  const handleModalVisibility = () => {
-    setOpen((prev) => !prev);
-  };
+  const drawerHeight = Math.max(360, Math.min(height * 0.82, 720));
+  const drawerDragStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: dragY.value }],
+  }));
 
-  useEffect(() => {
-    const showSub = Keyboard.addListener("keyboardDidShow", () => {
-      setIsKeyboardShow(true);
-    });
+  const drawerDragGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY([-6, 6])
+        .onUpdate((event) => {
+          dragY.value = Math.max(0, event.translationY);
+        })
+        .onEnd((event) => {
+          const dismissDistance = Math.min(140, drawerHeight * 0.22);
+          const shouldDismiss =
+            dragY.value >= dismissDistance || event.velocityY > 900;
 
-    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
-      setIsKeyboardShow(false);
-    });
+          if (shouldDismiss) {
+            dragY.value = withTiming(
+              drawerHeight,
+              { duration: 200, easing: Easing.in(Easing.cubic) },
+              (finished) => {
+                if (finished) runOnJS(closeDrawer)();
+              },
+            );
+            return;
+          }
 
-    handleTriggerHeight();
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, [value, isKeyboardShow, listHeight]);
+          dragY.value = withTiming(0, {
+            duration: 220,
+            easing: Easing.out(Easing.cubic),
+          });
+        })
+        .onFinalize((_event, success) => {
+          if (!success) {
+            dragY.value = withTiming(0, {
+              duration: 180,
+              easing: Easing.out(Easing.cubic),
+            });
+          }
+        }),
+    [closeDrawer, dragY, drawerHeight],
+  );
 
   return (
     <View style={styles.dropdownWrapper}>
       <Pressable
-        ref={triggerRef}
-        style={styles.dropdown}
-        onPress={() => {
-          handleTriggerHeight();
-          setOpen((prev) => !prev);
-        }}
+        style={({ pressed }) => [
+          styles.dropdown,
+          pressed && styles.dropdownPressed,
+        ]}
+        onPress={openDrawer}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
       >
         <Text style={styles.dropdownPlaceholder} numberOfLines={1}>
           {placeholder}
         </Text>
+        {value.length > 0 && (
+          <View style={styles.dropdownCount}>
+            <Text style={styles.dropdownCountText}>{value.length}</Text>
+          </View>
+        )}
         <MaterialCommunityIcons
-          name={open ? "chevron-up" : "chevron-down"}
+          name="chevron-up"
           size={22}
           color={theme.colors.onSurfaceVariant}
         />
@@ -140,79 +228,178 @@ export default function MultiSelect({
         </View>
       )}
 
-      <Modal transparent onRequestClose={handleModalVisibility} visible={open}>
-        <Pressable style={{ flex: 1 }} onPress={handleModalVisibility} />
-        <View
-          style={[styles.dropdownListContainer, { top: triggerHeight }]}
-          onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
-        >
-          <View style={styles.dropdownSearchRow}>
-            <MaterialCommunityIcons
-              name="magnify"
-              size={20}
-              color={theme.colors.onSurfaceVariant}
+      <Portal>
+        {open && (
+          <Animated.View
+            entering={FadeIn.duration(180)}
+            exiting={FadeOut.duration(180)}
+            style={styles.drawerBackdrop}
+          >
+            <Pressable
+              style={styles.drawerBackdropPressable}
+              onPress={closeDrawer}
+              accessibilityLabel="Close options"
             />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder={searchPlaceholder}
-              placeholderTextColor={theme.colors.onSurfaceVariant}
-              style={styles.dropdownSearch}
-              autoCorrect={false}
-              autoCapitalize="none"
-            />
-            {query.length > 0 && (
-              <Pressable onPress={() => setQuery("")} hitSlop={8}>
-                <MaterialCommunityIcons
-                  name="close"
-                  size={18}
-                  color={theme.colors.onSurfaceVariant}
-                />
-              </Pressable>
-            )}
-          </View>
+          </Animated.View>
+        )}
 
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.value}
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled
-            showsVerticalScrollIndicator
-            style={styles.dropdownList}
-            contentContainerStyle={styles.dropdownListContent}
-            ListEmptyComponent={
-              <View style={styles.dropdownEmpty}>
-                <Text style={styles.dropdownEmptyText}>No results</Text>
-              </View>
-            }
-            renderItem={({ item }) => {
-              const selected = value.includes(item.value);
-              const disabled = !selected && value.length >= maxSelect;
-              return (
-                <Button
-                  icon={() => (
-                    <MaterialCommunityIcons
-                      name="check"
-                      size={20}
-                      color={theme.colors.primary}
-                      style={{ opacity: selected ? 1 : 0 }}
-                    />
+        <KeyboardAvoidingView
+          pointerEvents="box-none"
+          style={styles.drawerLayer}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          {open && (
+            <Animated.View
+              entering={SlideInDown.duration(280).easing(
+                Easing.out(Easing.cubic),
+              )}
+              exiting={SlideOutDown.duration(220).easing(
+                Easing.in(Easing.cubic),
+              )}
+              style={[styles.drawerAnimationShell, { height: drawerHeight }]}
+            >
+              <Animated.View
+                style={[
+                  styles.drawer,
+                  { paddingBottom: Math.max(insets.bottom, 12) },
+                  drawerDragStyle,
+                ]}
+              >
+                <GestureDetector gesture={drawerDragGesture}>
+                  <View style={styles.drawerDragArea}>
+                    <View style={styles.drawerHandle} />
+
+                    <View style={styles.drawerHeader}>
+                      <View style={styles.drawerHeaderCopy}>
+                        <Text variant="titleLarge" style={styles.drawerTitle}>
+                          {placeholder}
+                        </Text>
+                        <Text style={styles.drawerSelectionCount}>
+                          {value.length} selected
+                          {Number.isFinite(maxSelect)
+                            ? ` / up to ${maxSelect}`
+                            : ""}
+                        </Text>
+                      </View>
+                      <IconButton
+                        icon="close"
+                        size={24}
+                        iconColor={theme.colors.onSurface}
+                        onPress={closeDrawer}
+                        accessibilityLabel="Close options"
+                      />
+                    </View>
+                  </View>
+                </GestureDetector>
+
+                <View style={styles.drawerSearchRow}>
+                  <MaterialCommunityIcons
+                    name="magnify"
+                    size={22}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                  <TextInput
+                    value={query}
+                    onChangeText={setQuery}
+                    placeholder={searchPlaceholder}
+                    placeholderTextColor={theme.colors.onSurfaceVariant}
+                    style={styles.drawerSearch}
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    returnKeyType="search"
+                  />
+                  {query.length > 0 && (
+                    <Pressable
+                      onPress={() => setQuery("")}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Clear search"
+                    >
+                      <MaterialCommunityIcons
+                        name="close-circle"
+                        size={20}
+                        color={theme.colors.onSurfaceVariant}
+                      />
+                    </Pressable>
                   )}
-                  contentStyle={[
-                    styles.dropdownItem,
-                    selected && styles.dropdownItemSelected,
-                    disabled && styles.dropdownItemDisabled,
-                  ]}
-                  onPress={() => toggle(item.value)}
-                  disabled={disabled}
+                </View>
+
+                <Animated.FlatList
+                  data={options}
+                  extraData={value}
+                  keyExtractor={(item) => item.value}
+                  itemLayoutAnimation={OPTION_LAYOUT}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                  showsVerticalScrollIndicator={false}
+                  style={styles.drawerList}
+                  contentContainerStyle={styles.drawerListContent}
+                  ListEmptyComponent={
+                    <View style={styles.dropdownEmpty}>
+                      <MaterialCommunityIcons
+                        name="magnify-close"
+                        size={32}
+                        color={theme.colors.onSurfaceVariant}
+                      />
+                      <Text style={styles.dropdownEmptyText}>No results</Text>
+                    </View>
+                  }
+                  renderItem={({ item }) => {
+                    const selected = value.includes(item.value);
+                    const disabled = !selected && value.length >= maxSelect;
+
+                    return (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.drawerItem,
+                          selected && styles.drawerItemSelected,
+                          disabled && styles.drawerItemDisabled,
+                          pressed && !disabled && styles.drawerItemPressed,
+                        ]}
+                        onPress={() => toggle(item.value)}
+                        disabled={disabled}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: selected, disabled }}
+                      >
+                        <Text
+                          style={[
+                            styles.drawerItemText,
+                            selected && styles.drawerItemTextSelected,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                        <MaterialCommunityIcons
+                          name={
+                            selected
+                              ? "checkbox-marked-circle"
+                              : "checkbox-blank-circle-outline"
+                          }
+                          size={24}
+                          color={
+                            selected
+                              ? theme.colors.primary
+                              : theme.colors.onSurfaceVariant
+                          }
+                        />
+                      </Pressable>
+                    );
+                  }}
+                />
+
+                <Button
+                  mode="contained"
+                  style={styles.drawerDoneButton}
+                  labelStyle={styles.drawerDoneLabel}
+                  onPress={closeDrawer}
                 >
-                  <Text style={styles.dropdownItemText}>{item.label}</Text>
+                  Done
                 </Button>
-              );
-            }}
-          />
-        </View>
-      </Modal>
+              </Animated.View>
+            </Animated.View>
+          )}
+        </KeyboardAvoidingView>
+      </Portal>
     </View>
   );
 }

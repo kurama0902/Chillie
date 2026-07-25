@@ -1,19 +1,19 @@
 import * as React from "react";
-import { useState } from "react";
-import { StyleProp, View, ViewStyle } from "react-native";
+import { StyleProp, ViewStyle } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import Carousel, { ICarouselInstance } from "react-native-reanimated-carousel";
 
 type SliderProps = {
   ref?: React.RefObject<ICarouselInstance | null>;
   contentList: React.JSX.Element[];
-  width?: number;
+  width: number;
   height?: number;
   style?: StyleProp<ViewStyle>;
-  mode?: "parallax" | "horizontal-stack" | "vertical-stack";
+  mode?: "parallax";
   modeConfig?: {
-    parallaxScrollingScale: number;
-    parallaxScrollingOffset: number;
+    parallaxScrollingScale?: number;
+    parallaxScrollingOffset?: number;
+    parallaxAdjacentItemScale?: number;
   };
   autoPlay?: boolean;
   autoPlayInterval?: number;
@@ -34,31 +34,39 @@ function Slider({
 }: SliderProps) {
   const progress = useSharedValue<number>(0);
 
-  return (
-    <Carousel
-      ref={(r) => {
-        if (ref) {
-          ref.current = r;
-        }
-      }}
-      style={style}
-      enabled={isDrag}
-      autoPlayInterval={autoPlayInterval}
-      autoPlay={autoPlay}
-      data={contentList}
-      loop={false}
-      pagingEnabled={true}
-      snapEnabled={true}
-      width={width}
-      height={height}
-      mode={mode}
-      modeConfig={modeConfig}
-      onProgressChange={(_, absoluteProgress) => {
-        progress.value = absoluteProgress;
-      }}
-      renderItem={({ item }) => item}
-    />
-  );
+  const carouselProps = {
+    ref: (instance: ICarouselInstance | null) => {
+      if (ref) {
+        ref.current = instance;
+      }
+    },
+    style,
+    enabled: isDrag,
+    autoPlayInterval,
+    autoPlay,
+    data: contentList,
+    loop: false,
+    pagingEnabled: true,
+    snapEnabled: true,
+    width,
+    height,
+    onProgressChange: (_: number, absoluteProgress: number) => {
+      progress.value = absoluteProgress;
+    },
+    renderItem: ({ item }: { item: React.JSX.Element }) => item,
+  };
+
+  if (mode === "parallax") {
+    return (
+      <Carousel
+        {...carouselProps}
+        mode="parallax"
+        modeConfig={modeConfig}
+      />
+    );
+  }
+
+  return <Carousel {...carouselProps} />;
 }
 
 export default Slider;
