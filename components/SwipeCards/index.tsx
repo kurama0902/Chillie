@@ -2,14 +2,15 @@ import { useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { AppTheme, MockUser } from "@/types/types";
-import { useDislikeUserMutation, useLikeUserMutation } from "@/store/api";
+import { AppTheme, MatchUser } from "@/types/types";
+import { useDislikeUserMutation } from "@/store/api";
+import { useWebSocket } from "@/context/WebSocketContext";
 import ProfileDetail from "@/components/ProfileDetail";
 import SwipeCard from "./SwipeCard";
 import { getStyles } from "./styles";
 
 type Props = {
-  data: MockUser[];
+  data: MatchUser[];
 };
 
 export default function SwipeCards({ data }: Props) {
@@ -24,14 +25,21 @@ export default function SwipeCards({ data }: Props) {
   const [index, setIndex] = useState(0);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const [likeUser] = useLikeUserMutation();
+  const { sendEvent } = useWebSocket();
   const [dislikeUser] = useDislikeUserMutation();
 
-  const sendDecision = (dir: "left" | "right", user: MockUser) => {
-    const mutate = dir === "right" ? likeUser : dislikeUser;
-    mutate({ userID: user.id })
+  const sendDecision = (dir: "left" | "right", user: MatchUser) => {
+    if (dir === "right") {
+      sendEvent({
+        type: "likeUser",
+        payload: { userID: user.userID },
+      });
+      return;
+    }
+
+    dislikeUser({ userID: user.userID })
       .unwrap()
-      .catch((error) => console.error(`${dir} reaction failed:`, error));
+      .catch((error) => console.error("left reaction failed:", error));
   };
 
   const advance = () => {
@@ -55,7 +63,7 @@ export default function SwipeCards({ data }: Props) {
   const current = data[index];
   const next = data[index + 1];
 
-  const stack = [next, current].filter(Boolean) as MockUser[];
+  const stack = [next, current].filter(Boolean) as MatchUser[];
 
   return (
     <View style={styles.stack}>

@@ -16,6 +16,7 @@ type Props = {
 };
 
 const AVATAR_PLACEHOLDER = require("../../assets/images/profileImages/avatarPlaceholder.jpg");
+const MAX_AVATAR_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 const CROP_OPTIONS = {
   mediaType: "photo",
@@ -64,7 +65,21 @@ export default function AvatarEditor({
     path: string;
     mime: string;
     filename?: string;
+    size?: number;
   }) => {
+    if (!/^image\/(jpeg|png|webp)$/i.test(image.mime)) {
+      console.warn("Unsupported avatar image type.");
+      return;
+    }
+
+    if (
+      typeof image.size === "number" &&
+      image.size > MAX_AVATAR_UPLOAD_BYTES
+    ) {
+      console.warn("Avatar image exceeds the 10 MB upload limit.");
+      return;
+    }
+
     const path = normalizeUploadUri(image.path);
     setPreview(path);
 
@@ -106,7 +121,7 @@ export default function AvatarEditor({
 
     try {
       let path = currentAvatar;
-      if (/^https?:\/\//.test(path)) {
+      if (/^https:\/\//i.test(path)) {
         const downloaded = await FileSystem.downloadAsync(
           path,
           FileSystem.cacheDirectory + "avatar-src.jpg",

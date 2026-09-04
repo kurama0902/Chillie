@@ -27,7 +27,15 @@ export const getStyles = (theme: AppTheme) =>
     fieldInput: {
       flex: 1,
     },
-
+    descriptionInput: {
+      minHeight: 128,
+      textAlignVertical: "top",
+    },
+    characterCount: {
+      color: theme.colors.onSurfaceVariant,
+      textAlign: "right",
+      marginTop: -4,
+    },
     dobRow: {
       flexDirection: "row",
       alignItems: "center",

@@ -28,9 +28,14 @@ export default function Main() {
 
   const { user: authUser } = useAuth0();
   const email = authUser?.email ?? "";
-  const loginArgs = { email };
-  const { data: loginUser } = useLoginQueryState(loginArgs, { skip: !email });
-  useLoginQuery(loginArgs, { skip: !email || loginUser === undefined });
+  const auth0Sub = authUser?.sub ?? "";
+  const loginArgs = { email, auth0Sub };
+  const { data: loginUser } = useLoginQueryState(loginArgs, {
+    skip: !email || !auth0Sub,
+  });
+  useLoginQuery(loginArgs, {
+    skip: !email || !auth0Sub || loginUser === undefined,
+  });
 
   useEffect(() => {
     if (seeded) return;

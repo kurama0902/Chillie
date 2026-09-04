@@ -1,30 +1,40 @@
 import { useState } from "react";
-import { Stack } from "expo-router";
+import { Redirect, Stack, useSegments } from "expo-router";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useTheme } from "react-native-paper";
 import { Provider } from "react-redux";
+import { StatusBar } from "expo-status-bar";
 import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { Auth0Provider } from "react-native-auth0";
+import { Auth0Provider, useAuth0 } from "react-native-auth0";
 
 import { store } from "@/store";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ThemeProvider } from "@/context/ThemeContext";
 import * as SplashScreen from "expo-splash-screen";
 import AnimatedSplash from "@/components/AnimatedSplash";
+import { WebSocketProvider } from "@/context/WebSocketContext";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootNavigator() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const segments = useSegments();
+  const { isLoading: isAuthLoading, user } = useAuth0();
   const [splashDone, setSplashDone] = useState(false);
+  const isProtectedRoute = segments[0] === "main";
+
+  if (!isAuthLoading && isProtectedRoute && !user) {
+    return <Redirect href="/(auth)" />;
+  }
 
   return (
     <View style={{ flex: 1 }}>
+      <StatusBar style="auto" translucent backgroundColor="transparent" />
       <View
         style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
@@ -51,7 +61,9 @@ export default function RootLayout() {
           <ThemeProvider>
             <KeyboardProvider>
               <Auth0Provider domain={domain} clientId={clientId}>
-                <RootNavigator />
+                <WebSocketProvider>
+                  <RootNavigator />
+                </WebSocketProvider>
               </Auth0Provider>
             </KeyboardProvider>
           </ThemeProvider>

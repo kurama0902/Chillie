@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { Keyboard, ScrollView, TextInput as NativeTextInput, View } from "react-native";
 import {
   Button,
   HelperText,
@@ -45,6 +45,7 @@ type ProfileForm = {
   lastname: string;
   email: string;
   date_of_birth: string;
+  profileDescription: string;
   sexualOrientation: string[];
   interests: string[];
   languages: string[];
@@ -66,12 +67,15 @@ const normalizeImageUri = (uri: string) => {
 };
 
 const EMPTY_LOCATION: UserLocation = { lat: "", lng: "", city: "", country: "" };
+const MAX_PROFILE_DESCRIPTION_LENGTH = 500;
+const MAX_PROFILE_IMAGE_BYTES = 10 * 1024 * 1024;
 
 const getProfileForm = (user: UserState | undefined): ProfileForm => ({
   name: user?.name ?? "",
   lastname: user?.lastname ?? "",
   email: user?.email ?? "",
   date_of_birth: user?.date_of_birth ?? "",
+  profileDescription: user?.profileDescription ?? "",
   sexualOrientation: user?.sexualOrientation ?? [],
   interests: user?.interests ?? [],
   languages: user?.languages ?? [],
@@ -84,6 +88,12 @@ const profileSchema = z.object({
   lastname: z.string().trim().min(1, "Lastname is required."),
   email: z.string().trim().min(1, "Email is required."),
   date_of_birth: z.string().trim().min(1, "Date of birth is required."),
+  profileDescription: z
+    .string()
+    .max(
+      MAX_PROFILE_DESCRIPTION_LENGTH,
+      "Profile description must be 500 characters or fewer.",
+    ),
   sexualOrientation: z
     .array(z.string())
     .min(1, "Select your sexual orientation.")
@@ -106,19 +116,34 @@ export default function ProfileScreen() {
   const styles = useMemo(() => getStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
-  const { user: authUser, clearSession, clearCredentials } = useAuth0();
+  const { user: authUser, clearCredentials } = useAuth0();
   const router = useRouter();
   const { isDark, toggleTheme } = useThemeMode();
   const email = authUser?.email ?? "";
+  const auth0Sub = authUser?.sub ?? "";
 
   const dispatch = useAppDispatch();
-  const loginArgs = { email };
+  const loginArgs = { email, auth0Sub };
   const { data: user } = useLoginQueryState(
     loginArgs,
-    { skip: !email },
+    { skip: !email || !auth0Sub },
   );
-  useLoginQuery(loginArgs, { skip: !email || user === undefined });
+  useLoginQuery(loginArgs, {
+    skip: !email || !auth0Sub || user === undefined,
+  });
   const [updateProfile, { isLoading }] = useUpdateProfileMutation();
+  const profileDescriptionRef = useRef<NativeTextInput | null>(null);
+
+  useEffect(() => {
+    const keyboardHideSubscription = Keyboard.addListener(
+      "keyboardDidHide",
+      () => {
+        profileDescriptionRef.current?.blur();
+      },
+    );
+
+    return () => keyboardHideSubscription.remove();
+  }, []);
 
   const seededFromLogin = useRef(Boolean(user));
   const [form, setForm] = useState<ProfileForm>(() => getProfileForm(user));
@@ -210,6 +235,7 @@ export default function ProfileScreen() {
       formData.append("name", form.name);
       formData.append("lastname", form.lastname);
       formData.append("date_of_birth", form.date_of_birth);
+      formData.append("profileDescription", form.profileDescription);
       formData.append("sexualOrientation", form.sexualOrientation[0] ?? "");
       formData.append("location", form.location.city);
       form.interests.forEach((v) => formData.append("interests[]", v));
@@ -232,12 +258,16 @@ export default function ProfileScreen() {
       const updatedUser = await updateProfile(formData).unwrap();
       if (email) {
         dispatch(
-          baseApi.util.updateQueryData("login", { email }, (cachedUser) => ({
+          baseApi.util.updateQueryData(
+            "login",
+            { email, auth0Sub },
+            (cachedUser) => ({
             ...(cachedUser ?? {}),
             ...(updatedUser ?? {}),
             ...form,
             profile_photos: profileImages,
-          })),
+            }),
+          ),
         );
       }
       setEditing({ name: false, lastname: false });
@@ -250,12 +280,9 @@ export default function ProfileScreen() {
     if (loggingOut) return;
     setLoggingOut(true);
     try {
-      await clearSession();
-    } catch {
-    }
-    try {
       await clearCredentials();
-    } catch {
+    } catch (error) {
+      console.error("Credential cleanup error:", error);
     }
     dispatch(baseApi.util.resetApiState());
     router.replace("/(auth)");
@@ -269,11 +296,15 @@ export default function ProfileScreen() {
   const cacheUpdatedAvatar = (updatedUser: UserState, localPath: string) => {
     if (!email) return;
     dispatch(
-      baseApi.util.updateQueryData("login", { email }, (cachedUser) => ({
+      baseApi.util.updateQueryData(
+        "login",
+        { email, auth0Sub },
+        (cachedUser) => ({
         ...(cachedUser ?? {}),
         ...(updatedUser ?? {}),
         avatar_url: updatedUser?.avatar_url ?? localPath,
-      })),
+        }),
+      ),
     );
   };
 
@@ -288,6 +319,19 @@ export default function ProfileScreen() {
         compressImageMaxHeight: 1280,
         compressImageQuality: 0.8,
       });
+
+      if (
+        typeof image.size === "number" &&
+        image.size > MAX_PROFILE_IMAGE_BYTES
+      ) {
+        console.warn("Profile image exceeds the 10 MB upload limit.");
+        return;
+      }
+
+      if (!/^image\/(jpeg|png|webp)$/i.test(image.mime ?? "")) {
+        console.warn("Unsupported profile image type.");
+        return;
+      }
 
       setProfileImages((current) =>
         current.length >= 10
@@ -304,8 +348,6 @@ export default function ProfileScreen() {
       current.filter((_, imageIndex) => imageIndex !== index),
     );
   };
-
-  if (!isFocused) return null;
 
   const parsed = form.date_of_birth ? dayjs(form.date_of_birth) : null;
   const dob = parsed && parsed.isValid() ? parsed : null;
@@ -468,6 +510,37 @@ export default function ProfileScreen() {
           ) : null}
         </View>
 
+        <View style={styles.section}>
+          <TextInput
+            ref={profileDescriptionRef}
+            mode="outlined"
+            label="Tell people a little about yourself"
+            multiline
+            numberOfLines={5}
+            maxLength={MAX_PROFILE_DESCRIPTION_LENGTH}
+            style={styles.descriptionInput}
+            value={form.profileDescription}
+            error={!!errors.profileDescription}
+            onChangeText={(text) => {
+              setForm((f) => ({
+                ...f,
+                profileDescription: text.slice(
+                  0,
+                  MAX_PROFILE_DESCRIPTION_LENGTH,
+                ),
+              }));
+              clearError("profileDescription");
+            }}
+          />
+          <Text style={styles.characterCount}>
+            {form.profileDescription.length}/{MAX_PROFILE_DESCRIPTION_LENGTH}
+          </Text>
+          {errors.profileDescription ? (
+            <HelperText type="error" visible>
+              {errors.profileDescription}
+            </HelperText>
+          ) : null}
+        </View>
         <View style={styles.section}>
           <Gallery
             title="Profile images"

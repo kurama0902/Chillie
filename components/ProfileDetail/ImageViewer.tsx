@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -7,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { Image } from "expo-image";
+import Zoom from "react-native-zoom-reanimated";
 import { Button, IconButton, Portal, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
@@ -15,9 +17,6 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import Carousel, {
-  ICarouselInstance,
-} from "react-native-reanimated-carousel";
 import { scheduleOnRN } from "react-native-worklets";
 import { AppTheme } from "@/types/types";
 
@@ -38,19 +37,23 @@ export default function ImageViewer({
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
 
-  const carouselRef = useRef<ICarouselInstance>(null);
+  const carouselRef = useRef<FlatList<string>>(null);
   const closingRef = useRef(false);
   const deletingRef = useRef(false);
-  const [current, setCurrent] = useState(initialIndex);
+  const safeInitialIndex = Math.min(
+    Math.max(initialIndex, 0),
+    Math.max(images.length - 1, 0),
+  );
+  const [current, setCurrent] = useState(safeInitialIndex);
   const [viewerImages, setViewerImages] = useState(images);
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false);
 
   const overlayOpacity = useSharedValue(0);
   const contentScale = useSharedValue(0.96);
   const deleteOpacity = useSharedValue(1);
   const deleteScale = useSharedValue(1);
 
-  const slideWidth = width;
   const cardWidth = width - 20;
   const stageHeight = Math.min(Math.round(height * 0.68), cardWidth * 1.42);
 
@@ -127,6 +130,7 @@ export default function ImageViewer({
     setCurrent(nextIndex);
     setViewerImages(nextImages);
     setDeletingIndex(nextIndex);
+    setIsZoomed(false);
     onDelete(index);
 
     requestAnimationFrame(() => {
@@ -162,6 +166,12 @@ export default function ImageViewer({
     );
   };
 
+  const selectImage = (index: number) => {
+    setIsZoomed(false);
+    setCurrent(index);
+    carouselRef.current?.scrollToIndex({ index, animated: true });
+  };
+
   return (
     <Portal>
       <Animated.View style={[styles.backdrop, overlayAnimatedStyle]}>
@@ -179,68 +189,91 @@ export default function ImageViewer({
             onPress={closeViewer}
           />
 
-          <Carousel
-            key={viewerImages.join("|")}
+          <FlatList
             ref={carouselRef}
             data={viewerImages}
-            width={slideWidth}
-            height={stageHeight}
-            defaultIndex={current}
-            loop={false}
-            autoFillData={false}
-            enabled={deletingIndex === null}
-            windowSize={3}
-            overscrollEnabled={false}
-            scrollAnimationDuration={280}
-            style={{ width: slideWidth, height: stageHeight }}
-            onSnapToItem={setCurrent}
+            horizontal
+            pagingEnabled
+            bounces={false}
+            scrollEnabled={deletingIndex === null && !isZoomed}
+            showsHorizontalScrollIndicator={false}
+            initialScrollIndex={safeInitialIndex}
+            getItemLayout={(_, index) => ({
+              length: width,
+              offset: width * index,
+              index,
+            })}
+            keyExtractor={(item, index) => `${item}-${index}`}
+            style={{ width, height }}
+            onMomentumScrollEnd={(event) => {
+              const nextIndex = Math.min(
+                Math.max(
+                  Math.round(event.nativeEvent.contentOffset.x / width),
+                  0,
+                ),
+                Math.max(viewerImages.length - 1, 0),
+              );
+              setCurrent(nextIndex);
+              setIsZoomed(false);
+            }}
             renderItem={({ item, index }) => (
-              <View
-                style={[
-                  styles.slide,
-                  { width: slideWidth, height: stageHeight },
-                ]}
-              >
-                <Animated.View
-                  style={[
-                    styles.imageFrame,
-                    { width: cardWidth, height: stageHeight },
-                    index === deletingIndex && deleteAnimatedStyle,
-                  ]}
+              <View style={[styles.slide, { width, height }]}>
+                <Zoom
+                  style={styles.zoom}
+                  minScale={1}
+                  maxScale={5}
+                  doubleTapConfig={{
+                    defaultScale: 2.5,
+                    minZoomScale: 1,
+                    maxZoomScale: 5,
+                  }}
+                  onZoomStateChange={(zoomed) => {
+                    if (index === current) setIsZoomed(zoomed);
+                  }}
                 >
-                  <Image
-                    source={{ uri: item }}
-                    style={styles.image}
-                    contentFit="cover"
-                    cachePolicy="memory-disk"
-                    priority={index === current ? "high" : "normal"}
-                    recyclingKey={item}
-                    transition={0}
-                  />
-                  {onDelete &&
-                    index === current &&
-                    deletingIndex === null && (
-                    <Button
-                      compact
-                      mode="contained"
-                      icon="delete-outline"
-                      buttonColor={theme.colors.primary}
-                      textColor={theme.colors.onPrimary}
-                      accessibilityLabel="Delete photo"
-                      style={styles.deleteButton}
-                      contentStyle={styles.deleteContent}
-                      labelStyle={styles.deleteLabel}
-                      onPress={() => deleteImage(index)}
-                    >
-                      Delete
-                    </Button>
-                  )}
-                </Animated.View>
+                  <Animated.View
+                    style={[
+                      styles.imageFrame,
+                      { width: cardWidth, height: stageHeight },
+                      index === deletingIndex && deleteAnimatedStyle,
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: item }}
+                      style={styles.image}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      priority={index === current ? "high" : "normal"}
+                      recyclingKey={item}
+                      transition={0}
+                    />
+
+                    {onDelete &&
+                      !isZoomed &&
+                      index === current &&
+                      deletingIndex === null && (
+                        <Button
+                          compact
+                          mode="contained"
+                          icon="delete-outline"
+                          buttonColor={theme.colors.primary}
+                          textColor={theme.colors.onPrimary}
+                          accessibilityLabel="Delete photo"
+                          style={styles.deleteButton}
+                          contentStyle={styles.deleteContent}
+                          labelStyle={styles.deleteLabel}
+                          onPress={() => deleteImage(index)}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                  </Animated.View>
+                </Zoom>
               </View>
             )}
           />
 
-          {viewerImages.length > 1 && (
+          {!isZoomed && viewerImages.length > 1 && (
             <>
               <IconButton
                 icon="chevron-left"
@@ -248,7 +281,7 @@ export default function ImageViewer({
                 iconColor="#fff"
                 disabled={current === 0 || deletingIndex !== null}
                 style={styles.arrowLeft}
-                onPress={() => carouselRef.current?.prev()}
+                onPress={() => selectImage(Math.max(current - 1, 0))}
               />
               <IconButton
                 icon="chevron-right"
@@ -258,43 +291,45 @@ export default function ImageViewer({
                   current === viewerImages.length - 1 || deletingIndex !== null
                 }
                 style={styles.arrowRight}
-                onPress={() => carouselRef.current?.next()}
+                onPress={() =>
+                  selectImage(Math.min(current + 1, viewerImages.length - 1))
+                }
               />
             </>
           )}
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={[styles.thumbBar, { bottom: insets.bottom + 16 }]}
-            contentContainerStyle={styles.thumbRow}
-          >
-            {viewerImages.map((uri, i) => (
-              <Pressable
-                key={`${uri}-${i}`}
-                disabled={deletingIndex !== null}
-                onPress={() =>
-                  carouselRef.current?.scrollTo({ index: i, animated: true })
-                }
-              >
-                <Image
-                  source={{ uri }}
-                  style={[
-                    styles.thumb,
-                    i === current && {
-                      borderColor: theme.colors.primary,
-                      borderWidth: 2,
-                    },
-                  ]}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                  priority="low"
-                  recyclingKey={`thumb-${uri}`}
-                  transition={0}
-                />
-              </Pressable>
-            ))}
-          </ScrollView>
+          {!isZoomed && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={[styles.thumbBar, { bottom: insets.bottom + 16 }]}
+              contentContainerStyle={styles.thumbRow}
+            >
+              {viewerImages.map((uri, index) => (
+                <Pressable
+                  key={`${uri}-${index}`}
+                  disabled={deletingIndex !== null}
+                  onPress={() => selectImage(index)}
+                >
+                  <Image
+                    source={{ uri }}
+                    style={[
+                      styles.thumb,
+                      index === current && {
+                        borderColor: theme.colors.primary,
+                        borderWidth: 2,
+                      },
+                    ]}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                    priority="low"
+                    recyclingKey={`thumb-${uri}`}
+                    transition={0}
+                  />
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
         </Animated.View>
       </Animated.View>
     </Portal>
@@ -304,7 +339,7 @@ export default function ImageViewer({
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.8)",
+    backgroundColor: "rgba(0,0,0,0.62)",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 3000,
@@ -339,12 +374,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  zoom: {
+    width: "100%",
+    height: "100%",
+  },
   imageFrame: {
     position: "relative",
     borderRadius: 24,
     overflow: "hidden",
-    backgroundColor: "#111",
-    elevation: 12,
+    backgroundColor: "transparent",
+    elevation: 4,
   },
   image: {
     width: "100%",

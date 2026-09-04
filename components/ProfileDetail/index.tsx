@@ -10,14 +10,15 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { AppTheme, MockUser } from "@/types/types";
+import { AppTheme, MatchUser } from "@/types/types";
 import Gallery from "./Gallery";
+import ImageViewer from "./ImageViewer";
 import { getStyles } from "./styles";
 
 const ABOUT_LIMIT = 250;
 
 type Props = {
-  user: MockUser;
+  user: MatchUser;
   onClose: () => void;
   onLike: () => void;
   onSkip: () => void;
@@ -32,6 +33,7 @@ export default function ProfileDetail({
   const theme = useTheme<AppTheme>();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+
 
   const photoHeight = Math.round(height * 0.46);
   const styles = getStyles(theme, photoHeight);
@@ -57,6 +59,7 @@ export default function ProfileDetail({
   }));
 
   const [expanded, setExpanded] = useState(false);
+  const [heroViewerVisible, setHeroViewerVisible] = useState(false);
   const isLong = user.description.length > ABOUT_LIMIT;
   const shownDescription =
     isLong && !expanded
@@ -75,11 +78,13 @@ export default function ProfileDetail({
             ]}
           >
             <View>
-              <Image
-                source={{ uri: user.image_url }}
-                style={styles.photo}
-                contentFit="cover"
-              />
+              <Pressable onPress={() => setHeroViewerVisible(true)}>
+                <Image
+                  source={{ uri: user.image_url }}
+                  style={styles.photo}
+                  contentFit="cover"
+                />
+              </Pressable>
               <IconButton
                 icon="chevron-down"
                 size={26}
@@ -163,6 +168,14 @@ export default function ProfileDetail({
           </ScrollView>
         </Animated.View>
       </Animated.View>
+
+      {heroViewerVisible && (
+        <ImageViewer
+          images={[user.image_url, ...user.additionalProfileImageUrls]}
+          initialIndex={0}
+          onClose={() => setHeroViewerVisible(false)}
+        />
+      )}
     </Portal>
   );
 }

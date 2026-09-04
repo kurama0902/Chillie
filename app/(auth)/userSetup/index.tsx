@@ -31,10 +31,15 @@ import {
   useLoginQueryState,
 } from "@/store/api";
 import WarningModal from "@/components/WarningModal";
+import AboutYouSlide from "@/components/UserSetup/AboutYouSlide";
+import ProfileImagesSlide, {
+  SetupProfileImage,
+} from "@/components/UserSetup/ProfileImagesSlide";
 
 type Questions = {
   name: string;
   lastname: string;
+  profileDescription: string;
   "date of birth": string;
   "sexual orientation": string[];
   interests: string[];
@@ -47,6 +52,7 @@ export default function UserSetup() {
   const [questionState, setQuestionState] = useState<Questions>({
     name: "",
     lastname: "",
+    profileDescription: "",
     "date of birth": "",
     "sexual orientation": [],
     interests: [],
@@ -67,7 +73,18 @@ export default function UserSetup() {
 
   const { width } = useWindowDimensions();
   const sliderRef = useRef<ICarouselInstance | null>(null);
-
+  const isProfileImagesSlide = slideIndex === 10;
+  const isDropdownSlide = slideIndex >= 3 && slideIndex <= 7;
+  const sliderHeight =
+    slideIndex === 9
+      ? 330
+      : slideIndex === 10
+        ? 600
+        : slideIndex === 8
+          ? 260
+          : isDropdownSlide
+            ? 400
+            : 200;
   const opacity = useSharedValue(1);
   const sliderAnimatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -80,13 +97,14 @@ export default function UserSetup() {
   const { user: authUser } = useAuth0();
 
   const email = authUser?.email ?? "";
-  const loginArgs = { email };
+  const auth0Sub = authUser?.sub ?? "";
+  const loginArgs = { email, auth0Sub };
   const { data: loginUser } = useLoginQueryState(
     loginArgs,
-    { skip: !email },
+    { skip: !email || !auth0Sub },
   );
   useLoginQuery(loginArgs, {
-    skip: !email || loginUser === undefined,
+    skip: !email || !auth0Sub || loginUser === undefined,
   });
   const [basicUserSetup, { isLoading: isSubmitting }] =
     useBasicUserSetupMutation();
@@ -118,47 +136,28 @@ export default function UserSetup() {
     type: string;
     name: string;
   } | null>(null);
+  const [profileImages, setProfileImages] = useState<SetupProfileImage[]>([]);
 
   const handleAvatarSelected = useCallback(
     (image: { uri: string; type: string; name: string }) => {
       setAvatarImage(image);
       if (!email) return;
       dispatch(
-        baseApi.util.updateQueryData("login", { email }, (cachedUser) => ({
+        baseApi.util.updateQueryData(
+          "login",
+          { email, auth0Sub },
+          (cachedUser) => ({
           ...(cachedUser ?? {}),
           avatar_url: image.uri,
-        })),
+          }),
+        ),
       );
     },
-    [dispatch, email],
+    [auth0Sub, dispatch, email],
   );
 
   const contentList = useMemo(
     () => [
-      <View
-        key="welcome"
-        style={{
-          flex: 1,
-          justifyContent: "space-around",
-          alignItems: "center",
-          gap: 10,
-        }}
-      >
-        <Text variant="headlineLarge">Welcome!</Text>
-        <Text style={{ textAlign: "center" }} variant="headlineSmall">
-          Answer to the following questions
-        </Text>
-      </View>,
-      <View key="avatar" style={styles.avatarSlide}>
-        <Text style={styles.questionText} variant="headlineLarge">
-          Add your avatar
-        </Text>
-        <AvatarEditor
-          avatarUrl={loginUser?.avatar_url}
-          size={190}
-          onSelected={handleAvatarSelected}
-        />
-      </View>,
       <Question
         key="name"
         handleStoreAnswers={handleStoreAnswers}
@@ -215,6 +214,24 @@ export default function UserSetup() {
         question="Where would you like to look for someone?"
         initialValue={[]}
       />,
+      <AboutYouSlide
+        key="profile description"
+        onChange={(value) => handleStoreAnswers("profileDescription", value)}
+      />,
+      <View key="avatar" style={styles.avatarSlide}>
+        <Text style={styles.questionText} variant="headlineLarge">
+          Add your avatar
+        </Text>
+        <AvatarEditor
+          avatarUrl={loginUser?.avatar_url}
+          size={190}
+          onSelected={handleAvatarSelected}
+        />
+      </View>,
+      <ProfileImagesSlide
+        key="profile images"
+        onChange={setProfileImages}
+      />,
     ],
     [
       handleAvatarSelected,
@@ -233,10 +250,15 @@ export default function UserSetup() {
         autoPlay={false}
         contentList={contentList}
         width={width - 20}
-        style={{ overflow: "visible", position: "relative", zIndex: 1000 }}
+        height={isProfileImagesSlide ? sliderHeight : undefined}
+        style={{
+          overflow: "hidden",
+          position: "relative",
+          zIndex: 1000,
+        }}
       />
     ),
-    [contentList, width],
+    [contentList, isProfileImagesSlide, sliderHeight, width],
   );
 
   const switchSlide = (direction: "next" | "prev") => {
@@ -250,8 +272,6 @@ export default function UserSetup() {
   };
 
   const slideValidation: ({ key: keyof Questions; message: string } | null)[] = [
-    null,
-    null,
     { key: "name", message: "Please enter your name before continuing." },
     { key: "lastname", message: "Please enter your lastname before continuing." },
     {
@@ -281,6 +301,16 @@ export default function UserSetup() {
   ];
 
   const getEmptyWarning = (index: number): string | null => {
+    if (index === 8 && !questionState.profileDescription.trim()) {
+      return 'Please tell us about yourself before continuing.';
+    }
+    if (index === 9 && !avatarImage && !loginUser?.avatar_url) {
+      return 'Please add your avatar before continuing.';
+    }
+    if (index === 10 && profileImages.length === 0) {
+      return 'Please add at least one profile photo before continuing.';
+    }
+
     const rule = slideValidation[index];
     if (!rule) return null;
     const answer = questionState[rule.key];
@@ -346,6 +376,7 @@ export default function UserSetup() {
       formData.append("lastname", questionState.lastname);
       formData.append("email", email);
       formData.append("date_of_birth", questionState["date of birth"]);
+      formData.append("profileDescription", questionState.profileDescription);
       formData.append("location", questionState.location[0] ?? "");
 
       formData.append(
@@ -365,15 +396,23 @@ export default function UserSetup() {
       if (avatarImage) {
         formData.append("avatar_image", avatarImage as any);
       }
+      profileImages.forEach((image) => {
+        formData.append("profile_photos[]", image as any);
+      });
 
       const setupUser = await basicUserSetup(formData).unwrap();
       if (email) {
         dispatch(
-          baseApi.util.updateQueryData("login", { email }, (cachedUser) => ({
+          baseApi.util.updateQueryData(
+            "login",
+            { email, auth0Sub },
+            (cachedUser) => ({
             ...(cachedUser ?? {}),
             ...(setupUser ?? {}),
             name: setupUser?.name ?? questionState.name,
             lastname: setupUser?.lastname ?? questionState.lastname,
+            profileDescription:
+              setupUser?.profileDescription ?? questionState.profileDescription,
             email,
             date_of_birth:
               setupUser?.date_of_birth ?? questionState["date of birth"],
@@ -385,12 +424,16 @@ export default function UserSetup() {
             preferableLocation:
               setupUser?.preferableLocation ??
               questionState["preferable location"],
+            profile_photos:
+              setupUser?.profile_photos ??
+              profileImages.map((image) => image.uri),
             avatar_url:
               setupUser?.avatar_url ??
               avatarImage?.uri ??
               cachedUser?.avatar_url,
             isNew: false,
-          })),
+            }),
+          ),
         );
       }
       router.replace("/main");
@@ -399,26 +442,26 @@ export default function UserSetup() {
     }
   };
 
-  const isDropdownSlide = slideIndex >= 5;
-  const sliderHeight = slideIndex === 1 ? 330 : isDropdownSlide ? 400 : 200;
-
   return (
     <>
-      <View style={styles.containerWrap}>
+      <View
+        style={styles.containerWrap}
+      >
         <Animated.View
           style={[
             styles.sliderWrap,
             sliderAnimatedStyle,
-            [
-              {
-                height: sliderHeight,
-              },
-            ],
+            { height: sliderHeight },
           ]}
         >
           {sliderElement}
         </Animated.View>
-        <View style={styles.buttonsRow}>
+        <View
+          style={[
+            styles.buttonsRow,
+            isProfileImagesSlide && styles.profileImagesButtonsRow,
+          ]}
+        >
           <Button
             onPress={handlePrevSlide}
             labelStyle={styles.buttonLabel}
@@ -448,7 +491,9 @@ export default function UserSetup() {
         </View>
         <Animated.View
           style={
-            slideIndex !== 1 && !isDropdownSlide ? fakeView : { height: 0 }
+            !isProfileImagesSlide && slideIndex !== 9 && !isDropdownSlide
+              ? fakeView
+              : { height: 0 }
           }
         />
       </View>
@@ -489,7 +534,7 @@ const getStyles = (theme: AppTheme) => {
       height: 50,
     },
     sliderWrap: {
-      height: 200,
+      width: "100%",
       marginTop: 50,
     },
     buttonsRow: {
@@ -499,6 +544,9 @@ const getStyles = (theme: AppTheme) => {
       alignSelf: "flex-end",
       marginTop: 35,
       gap: 10,
+    },
+    profileImagesButtonsRow: {
+      marginTop: 10,
     },
     buttonLabel: {
       fontSize: 18,

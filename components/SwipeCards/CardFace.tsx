@@ -2,11 +2,11 @@ import { View } from "react-native";
 import { Image } from "expo-image";
 import { Text, useTheme } from "react-native-paper";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { AppTheme, MockUser } from "@/types/types";
+import { AppTheme, MatchUser } from "@/types/types";
 import { getStyles } from "./styles";
 
 type Props = {
-  user: MockUser;
+  user: MatchUser;
   width: number;
   height: number;
 };

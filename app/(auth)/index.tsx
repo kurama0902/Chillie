@@ -5,7 +5,7 @@ import { Button, Text, useTheme } from "react-native-paper";
 import { Image } from "expo-image";
 import { useAuth0 } from "react-native-auth0";
 import { jwtDecode } from "jwt-decode";
-import { auth0 } from "@/lib/auth0";
+import { AUTH0_AUDIENCE, AUTH0_CUSTOM_SCHEME } from "@/lib/auth0";
 import { useRouter } from "expo-router";
 import { useLazyLoginQuery } from "@/store/api";
 import { createStyles } from "./styles";
@@ -26,17 +26,27 @@ const Auth = () => {
     if (isAuthorizing || isLoggingIn) return;
     setIsAuthorizing(true);
     try {
-      const result = await authorize({
-        audience: "https://chillie.top",
-        scope: "openid profile email offline_access",
-      });
+      const result = await authorize(
+        {
+          audience: AUTH0_AUDIENCE,
+          scope: "openid profile email offline_access",
+          additionalParameters: {
+            prompt: "login",
+          },
+        },
+        {
+          customScheme: AUTH0_CUSTOM_SCHEME,
+        },
+      );
 
-      await auth0.credentialsManager.saveCredentials(result);
+      const { email, sub } = jwtDecode<{ email?: string; sub?: string }>(
+        result.idToken,
+      );
+      if (!email || !sub) {
+        throw new Error("Auth0 did not return a complete identity.");
+      }
 
-      const { email } = jwtDecode<{ email?: string }>(result.idToken);
-      if (!email) throw new Error("Auth0 did not return an email.");
-
-      const userData = await login({ email }).unwrap();
+      const userData = await login({ email, auth0Sub: sub }).unwrap();
       if (userData?.isNew) {
         router.push("/(auth)/userSetup");
       } else {

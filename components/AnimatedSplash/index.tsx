@@ -91,9 +91,12 @@ export default function AnimatedSplash({ onFinish }: Props) {
     >
       {html ? (
         <WebView
-          originWhitelist={["*"]}
+          originWhitelist={["about:blank"]}
           source={{ html }}
           style={{ flex: 1, backgroundColor: bg }}
+          javaScriptEnabled={false}
+          domStorageEnabled={false}
+          setSupportMultipleWindows={false}
           scrollEnabled={false}
           overScrollMode="never"
           showsVerticalScrollIndicator={false}

@@ -17,8 +17,8 @@ export default function MainLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "Search" }} />
       <Tabs.Screen name="matches/index" options={{ title: "Matches" }} />
-      <Tabs.Screen name="messages/index" options={{ title: "Messages" }} />
       <Tabs.Screen name="profile/index" options={{ title: "Profile" }} />
+      <Tabs.Screen name="messages/index" options={{ title: "Messages" }} />
     </Tabs>
   );
 }

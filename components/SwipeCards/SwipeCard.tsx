@@ -11,12 +11,12 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { AppTheme, MockUser } from "@/types/types";
+import { AppTheme, MatchUser } from "@/types/types";
 import CardFace from "./CardFace";
 import { CROSS_COLOR, getStyles } from "./styles";
 
 type Props = {
-  user: MockUser;
+  user: MatchUser;
   width: number;
   height: number;
   isTop: boolean;

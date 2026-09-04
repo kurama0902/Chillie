@@ -1,109 +1,79 @@
-import { useEffect } from "react";
-import { Pressable, StyleProp, View, ViewStyle } from "react-native";
-import { Image } from "expo-image";
-import { Text, useTheme } from "react-native-paper";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useIsFocused } from "@react-navigation/native";
-import Animated, {
-  cancelAnimation,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
-import { AppTheme, MockUser } from "@/types/types";
-import { getStyles } from "./styles";
-import { Match } from "./data";
+import { darkTheme } from "@/theme";
+import { MatchUser } from "@/types/types";
+import { ImageBackground } from "expo-image";
+import React from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Button, Icon, Text } from "react-native-paper";
 
-type Props = {
-  match: Match;
-  width: number;
-  onOpen: (user: MockUser) => void;
-};
-
-const RATIO = 1.34;
-
-function AnimatedHeart({ style }: { style: StyleProp<ViewStyle> }) {
-  const scale = useSharedValue(1);
-  const isFocused = useIsFocused();
-
-  useEffect(() => {
-    if (isFocused) {
-      scale.value = withRepeat(
-        withSequence(
-          withTiming(1.18, { duration: 450 }),
-          withTiming(1, { duration: 450 }),
-        ),
-        -1,
-      );
-    } else {
-      cancelAnimation(scale);
-      scale.value = 1;
-    }
-
-    return () => cancelAnimation(scale);
-  }, [isFocused, scale]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  return (
-    <Animated.View style={[style, animatedStyle]} pointerEvents="none">
-      <MaterialCommunityIcons name="heart" size={22} color="#fff" />
-    </Animated.View>
-  );
-}
-
-export default function MatchCard({ match, width, onOpen }: Props) {
-  const theme = useTheme<AppTheme>();
-  const styles = getStyles(theme);
-
-  const onCross = () => {};
-  const onHeart = () => {};
-  const onSendMessage = () => {};
-
+function MatchCard({
+  user,
+  handleProfileDetailOpen,
+  likeUser,
+  skipUser,
+}: {
+  user: MatchUser;
+  handleProfileDetailOpen: (user: MatchUser) => void;
+  likeUser: (user: MatchUser) => void;
+  skipUser: (user: MatchUser) => void;
+}) {
   return (
     <Pressable
-      style={[styles.card, { width, height: width * RATIO }]}
-      onPress={() => onOpen(match)}
+      style={styles.card}
+      onPress={() => handleProfileDetailOpen(user)}
     >
-      <Image
-        source={{ uri: match.image_url.replace("/1000", "/400") }}
-        style={styles.image}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-        recyclingKey={match.id}
-      />
-      <View style={styles.scrim} pointerEvents="none" />
-
-      <Text style={styles.name} numberOfLines={1}>
-        {match.name}, {match.age}
-      </Text>
-
-      {match.matched ? (
-        <>
-          <AnimatedHeart style={styles.matchBadge} />
-          <Pressable style={styles.sendBtn} onPress={onSendMessage}>
-            <MaterialCommunityIcons
-              name="send"
-              size={16}
-              color={theme.colors.onPrimary}
-            />
-            <Text style={styles.sendText}>Send message</Text>
-          </Pressable>
-        </>
-      ) : (
-        <View style={styles.actionRow}>
-          <Pressable style={styles.actionBtn} onPress={onCross}>
-            <MaterialCommunityIcons name="close" size={22} color="#fff" />
-          </Pressable>
-          <Pressable style={styles.actionBtn} onPress={onHeart}>
-            <MaterialCommunityIcons name="heart" size={22} color="#fff" />
-          </Pressable>
-        </View>
-      )}
+        <ImageBackground
+          contentFit="none"
+          source={{ uri: user.image_url }}
+          style={[styles.cardWrap]}
+          imageStyle={styles.image}
+        >
+          <Text style={{ color: darkTheme.colors.onPrimary }}>
+            {user.name} {user.lastname}, {user.age}
+          </Text>
+          <View style={styles.btnWrap}>
+            <Button
+              onPress={(e) => {
+                e.stopPropagation();
+                likeUser(user);
+              }}
+            >
+              <Icon color="#fff" source="heart" size={30} />
+            </Button>
+            <Button
+              onPress={(e) => {
+                e.stopPropagation();
+                skipUser(user);
+              }}
+            >
+              <Icon color="#fff" source="close" size={30} />
+            </Button>
+          </View>
+        </ImageBackground>
     </Pressable>
   );
 }
+
+export default React.memo(MatchCard);
+
+const styles = StyleSheet.create({
+  card: {
+    width: "100%",
+    aspectRatio: 9 / 16,
+  },
+  cardWrap: {
+    flex: 1,
+    padding: 5,
+    justifyContent: "flex-end",
+    position: "relative"
+  },
+
+  btnWrap: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+
+  image: {    
+    borderRadius: 8,
+  }
+});

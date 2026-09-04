@@ -36,7 +36,7 @@ export default function Gallery({
   }, [images]);
 
   return (
-    <View style={{ gap: 12 }}>
+    <View style={{ gap: 12, width: "100%" }}>
       <View
         style={{
           flexDirection: "row",
@@ -58,7 +58,7 @@ export default function Gallery({
         )}
       </View>
 
-      <View style={{ flexDirection: "row", gap: 16 }}>
+      <View style={{ flexDirection: "row", gap: 16, width: "100%" }}>
         {columns.map((col, ci) => (
           <View key={ci} style={{ flex: 1, gap: 16 }}>
             {col.map((tile) => (

@@ -1,10 +1,19 @@
-import { MockUser, UserLocation, UserState } from "@/types/types";
+import {
+  ChatMessage,
+  ChatMessagesPage,
+  ChatPage,
+  MatchUser,
+  UserLocation,
+  UserState,
+} from "@/types/types";
+import { StoriesResponse } from "@/types/stories";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { auth0 } from "@/lib/auth0";
 import { getFingerprint } from "@/lib/fingerprint";
 
 type loginPayload = {
   email: string;
+  auth0Sub?: string;
 };
 
 type signUpPayload = {
@@ -28,12 +37,12 @@ type getFilteredDataPayload = {
 };
 
 type likePayload = {
-  userID: string
-}
+  userID: string;
+};
 
 type dislikePayload = {
-  userID: string
-}
+  userID: string;
+};
 
 const serializeParams = (params: Record<string, unknown>): string =>
   Object.entries(params)
@@ -47,6 +56,16 @@ const serializeParams = (params: Record<string, unknown>): string =>
         : [`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`],
     )
     .join("&");
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_BASE_URL ?? "";
+
+if (!API_BASE_URL) {
+  throw new Error("EXPO_PUBLIC_BASE_URL is required.");
+}
+
+if (!__DEV__ && !API_BASE_URL.startsWith("https://")) {
+  throw new Error("EXPO_PUBLIC_BASE_URL must use HTTPS in production.");
+}
 
 const normalizeLocation = (location: unknown): UserLocation => {
   if (typeof location === "string") {
@@ -86,7 +105,7 @@ const normalizeUser = (user: UserState): UserState => {
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.EXPO_PUBLIC_BASE_URL,
+    baseUrl: API_BASE_URL,
     paramsSerializer: serializeParams,
     prepareHeaders: async (headers) => {
       try {
@@ -97,19 +116,60 @@ export const baseApi = createApi({
         if (credentials?.accessToken) {
           headers.set("Authorization", `Bearer ${credentials.accessToken}`);
         }
-      } catch {
-      }
+      } catch {}
 
       try {
         headers.set("X-Fingerprint", await getFingerprint());
-      } catch {
-      }
+      } catch {}
 
       return headers;
     },
   }),
   tagTypes: ["userData"],
   endpoints: (build) => ({
+    getChats: build.infiniteQuery<ChatPage, void, string | null>({
+      query: ({ pageParam }) => ({
+        url: "getChats",
+        params: {
+          limit: 20,
+          ...(pageParam ? { cursor: pageParam } : {}),
+        },
+      }),
+      infiniteQueryOptions: {
+        initialPageParam: null,
+        getNextPageParam: (lastPage) =>
+          lastPage.nextCursor ?? undefined,
+      },
+    }),
+    getMessages: build.infiniteQuery<ChatMessagesPage, string, string | null>({
+      query: ({ queryArg, pageParam }) => ({
+        url: 'getMessages',
+        params: {
+          chatId: queryArg,
+          limit: 30,
+          ...(pageParam ? { before: pageParam } : {}),
+        },
+      }),
+      infiniteQueryOptions: {
+        initialPageParam: null,
+        getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      },
+    }),
+    sendMessage: build.mutation<ChatMessage, FormData>({
+      query: (body) => ({
+        url: 'sendMessage',
+        method: 'POST',
+        body,
+      }),
+    }),
+    getStories: build.query<StoriesResponse, void>({
+      query: () => ({
+        url: "getStories",
+        method: "GET",
+      }),
+      transformErrorResponse: (response: { status: string | number }) =>
+        response.status,
+    }),
     getUserData: build.query<UserState, void>({
       query: () => ({ url: "getUserData" }),
       transformResponse: (response: UserState) => normalizeUser(response),
@@ -120,9 +180,18 @@ export const baseApi = createApi({
       ) => response.status,
       providesTags: ["userData"],
     }),
-    getFilteredData: build.query<MockUser[], getFilteredDataPayload>({
+    getFilteredData: build.query<MatchUser[], getFilteredDataPayload>({
       query: (filters) => ({ url: "getFilteredData", params: filters }),
-      transformResponse: (response: MockUser[], meta, arg) => response,
+      transformResponse: (response: MatchUser[], meta, arg) => response,
+      transformErrorResponse: (
+        response: { status: string | number },
+        meta,
+        arg,
+      ) => response.status,
+    }),
+    getMatches: build.query<MatchUser[], void>({
+      query: () => "getMatches",
+      transformResponse: (response: MatchUser[], meta, arg) => response,
       transformErrorResponse: (
         response: { status: string | number },
         meta,
@@ -146,10 +215,13 @@ export const baseApi = createApi({
       transformResponse: (response: void, meta, arg) => response,
     }),
     login: build.query<UserState, loginPayload>({
-      query: ({ email }) => ({
+      query: ({ email, auth0Sub }) => ({
         url: "login",
         method: "POST",
-        body: { email },
+        body: {
+          email,
+          ...(auth0Sub ? { auth0Sub } : {}),
+        },
       }),
       transformResponse: (response: UserState) => normalizeUser(response),
     }),
@@ -197,6 +269,11 @@ export const baseApi = createApi({
 });
 
 export const {
+  useGetChatsInfiniteQuery,
+  useGetMessagesInfiniteQuery,
+  useSendMessageMutation,
+  useGetStoriesQuery,
+  useGetMatchesQuery,
   useGetFilteredDataQuery,
   useLazyGetFilteredDataQuery,
   useLikeUserMutation,

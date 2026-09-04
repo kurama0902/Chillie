@@ -7,6 +7,7 @@ export type User = {
   avatar_url: string,
   email: string;
   date_of_birth: string;
+  profileDescription: string;
   profile_photos: string[];
   sexualOrientation: string[];
   interests: string[];
@@ -31,8 +32,8 @@ export type AppTheme = MD3Theme & {
   }
 }
 
-export type MockUser = {
-  id: string;
+export type MatchUser = {
+  userID: string;
   name: string;
   lastname: string;
   age: string;
@@ -65,4 +66,40 @@ export const DEFAULT_FILTERS: Filters = {
   orientations: [],
   distance: 40,
   ageRange: [20, 28],
+};
+
+export type ChatItem =  {
+  id: string;
+  image_url: string;
+  lastMessage: {
+    text: string;
+    date: string;
+  };
+  name: string;
+  lastname?: string;
+  newMessagesQuant: number;
+};
+
+export type ChatPage = {
+  items: ChatItem[];
+  nextCursor: string | null;
+};
+
+export type ChatMessage = {
+  id: string;
+  senderId: string;
+  text: string;
+  createdAt: string;
+  isMine: boolean;
+  replyTo?: {
+    id: string;
+    text: string;
+    senderName?: string;
+  };
+};
+
+export type ChatMessagesPage = {
+  items: ChatMessage[];
+  nextCursor: string | null;
+  hasMore?: boolean;
 };
